@@ -24,7 +24,7 @@ export interface IncomeEntry {
   amount_earned: number
   customer: string | null
   note: string | null
-  source: string
+  source: 'manual' | 'import'
   created_at: string
 }
 
@@ -34,7 +34,11 @@ export interface IncomeEntry {
  * Mirrors the data-model invariant: `amount_earned = price * (commissionPct / 100)`,
  * rounded to two decimal places. Call this explicitly on every income insert —
  * never rely on a database trigger or default.
+ *
+ * The `+ Number.EPSILON` nudge guards against float representation error at the
+ * half-cent boundary (e.g. `1.005 * 100` is `100.49999…`, which would otherwise
+ * round down to `1.00`).
  */
 export function computeEarnings(price: number, commissionPct: number): number {
-  return Math.round(price * (commissionPct / 100) * 100) / 100
+  return Math.round((price * (commissionPct / 100) + Number.EPSILON) * 100) / 100
 }
