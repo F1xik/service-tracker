@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Mockup · Log Income (§5.2)</title>
+    <link rel="stylesheet" href="tokens.css" />
+    <link rel="stylesheet" href="components.css" />
+  </head>
+  <body>
+    <!-- §5.2 Log Income — primary daily screen -->
+    <main class="screen">
+      <header class="topbar">
+        <span class="title">Log income</span>
+        <button class="btn btn-ghost btn-icon" aria-label="Account menu">
+          <svg class="icon-svg" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="10" r="3"/><path d="M6.7 19a6 6 0 0 1 10.6 0"/></svg>
+        </button>
+      </header>
+
+      <div class="content">
+        <!-- Entry form card -->
+        <div class="card">
+          <div class="card-body">
+            <div class="field">
+              <label for="svc">Service</label>
+              <div class="input select" id="svc" tabindex="0">
+                <span>Haircut</span>
+                <svg class="icon-svg sm fg-subtle" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+              </div>
+            </div>
+
+            <div class="row" style="align-items: flex-start;">
+              <div class="field grow">
+                <label for="price">Price</label>
+                <div class="input amount is-focus" id="price"><span class="affix">$</span><span>40.00</span></div>
+              </div>
+              <div class="field grow">
+                <label for="date">Date</label>
+                <div class="input select" id="date">
+                  <span>Jun 1, 2026</span>
+                  <svg class="icon-svg sm fg-subtle" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/></svg>
+                </div>
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="cust">Customer <span class="fg-subtle">(optional)</span></label>
+              <input class="input" id="cust" placeholder="Name" />
+            </div>
+
+            <div class="field">
+              <label for="note">Note <span class="fg-subtle">(optional)</span></label>
+              <input class="input" id="note" placeholder="Add a note" />
+            </div>
+
+            <!-- live "You earn" preview — computeEarnings(40, 15) = 6.00 (precomputed sample) -->
+            <div class="between" style="padding: 4px 2px;">
+              <span class="t-sm fg-muted">You earn</span>
+              <span class="t-h3 tabular fg-positive">▶ $6.00</span>
+            </div>
+
+            <button class="btn btn-primary block">Save entry</button>
+          </div>
+        </div>
+
+        <!-- Recent entries -->
+        <div class="section-header">
+          <h2 class="t-h2">Recent</h2>
+        </div>
+        <div class="card" style="padding: 8px 16px;">
+          <div class="list">
+            <div class="list-item">
+              <span class="lead"><svg class="icon-svg sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 2 7l10 5 10-5-10-5Z"/><path d="m2 17 10 5 10-5M2 12l10 5 10-5"/></svg></span>
+              <div><div class="primary">Haircut</div><div class="secondary">Jun 1 · Maria</div></div>
+              <span class="trailing fg-positive tabular">$6.00</span>
+            </div>
+            <div class="list-item">
+              <span class="lead"><svg class="icon-svg sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 2 7l10 5 10-5-10-5Z"/><path d="m2 17 10 5 10-5M2 12l10 5 10-5"/></svg></span>
+              <div><div class="primary">Massage</div><div class="secondary">May 31 · Jon</div></div>
+              <span class="trailing fg-positive tabular">$18.00</span>
+            </div>
+            <div class="list-item">
+              <span class="lead"><svg class="icon-svg sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 2 7l10 5 10-5-10-5Z"/><path d="m2 17 10 5 10-5M2 12l10 5 10-5"/></svg></span>
+              <div><div class="primary">Color treatment</div><div class="secondary">May 30</div></div>
+              <span class="trailing fg-positive tabular">$13.50</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom tab bar (§4.7) -->
+      <nav class="tabbar" aria-label="Primary">
+        <button class="tab" aria-current="page">
+          <svg class="icon-svg" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M8 12h8M12 8v8"/></svg>
+          Income
+        </button>
+        <button class="tab">
+          <svg class="icon-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 9V5a2 2 0 0 1 2-2h4l11 11-6 6L2 9Z"/><circle cx="7" cy="8" r="1.5"/></svg>
+          Services
+        </button>
+        <button class="tab">
+          <svg class="icon-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18"/><rect x="7" y="11" width="3" height="6"/><rect x="13" y="7" width="3" height="10"/></svg>
+          Stats
+        </button>
+        <button class="tab">
+          <svg class="icon-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3M7 8l5-5 5 5"/><path d="M5 21h14"/></svg>
+          Import
+        </button>
+      </nav>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Mockup · Import (§5.5)</title>
+    <link rel="stylesheet" href="tokens.css" />
+    <link rel="stylesheet" href="components.css" />
+  </head>
+  <body>
+    <!-- §5.5 Import — Upload → Preview → Confirm. Result state shown in README variant note. -->
+    <main class="screen">
+      <header class="topbar">
+        <span class="title">Import</span>
+        <button class="btn btn-ghost btn-icon" aria-label="Account menu">
+          <svg class="icon-svg" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="10" r="3"/><path d="M6.7 19a6 6 0 0 1 10.6 0"/></svg>
+        </button>
+      </header>
+
+      <div class="content">
+        <!-- Dropzone -->
+        <div class="dropzone">
+          <svg class="icon-svg" viewBox="0 0 24 24" aria-hidden="true" style="width:32px;height:32px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="M12 18v-6M9 15l3-3 3 3"/></svg>
+          <div class="t-body-lg" style="font-weight: 600; color: var(--color-fg);">Drop CSV here</div>
+          <div class="t-sm">or tap to browse</div>
+        </div>
+
+        <!-- Preview -->
+        <div class="section-header"><h2 class="t-h2">Preview · 12 rows</h2></div>
+        <div class="stack">
+          <div class="preview-row">
+            <span class="grow">Jun 1 · Haircut</span>
+            <span class="tabular">$40.00</span>
+            <svg class="icon-svg sm fg-positive" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m8 12 3 3 5-6"/></svg>
+          </div>
+          <div class="preview-row">
+            <span class="grow">Jun 1 · Massage</span>
+            <span class="tabular">$90.00</span>
+            <svg class="icon-svg sm fg-positive" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m8 12 3 3 5-6"/></svg>
+          </div>
+          <div class="preview-row invalid">
+            <div class="grow">
+              <div>Jun 2 · <em>Unknown</em></div>
+              <div class="reason">⚠ Unknown service — will import without a link</div>
+            </div>
+            <span class="tabular">$90.00</span>
+          </div>
+        </div>
+
+        <p class="t-sm fg-muted">10 valid · 2 with notes</p>
+      </div>
+
+      <!-- sticky confirm bar -->
+      <div class="confirm-bar">
+        <button class="btn btn-primary block">Import 12 entries</button>
+      </div>
+
+      <nav class="tabbar" aria-label="Primary">
+        <button class="tab">
+          <svg class="icon-svg" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M8 12h8M12 8v8"/></svg>
+          Income
+        </button>
+        <button class="tab">
+          <svg class="icon-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 9V5a2 2 0 0 1 2-2h4l11 11-6 6L2 9Z"/><circle cx="7" cy="8" r="1.5"/></svg>
+          Services
+        </button>
+        <button class="tab">
+          <svg class="icon-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18"/><rect x="7" y="11" width="3" height="6"/><rect x="13" y="7" width="3" height="10"/></svg>
+          Stats
+        </button>
+        <button class="tab" aria-current="page">
+          <svg class="icon-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3M7 8l5-5 5 5"/><path d="M5 21h14"/></svg>
+          Import
+        </button>
+      </nav>
+    </main>
+  </body>
+</html>
