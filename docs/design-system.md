@@ -391,6 +391,10 @@ Recharts only (per `CLAUDE.md`). Theme it from tokens so charts follow light/dar
 Wireframes are mobile-first (the primary form factor); desktop notes follow. Every
 query-backed region specifies its **loading / empty / error / success** behavior.
 
+> **Visual reference:** token-accurate rendered mockups of every screen below (light + dark,
+> mobile + desktop) live in [`mockups/`](./mockups/README.md). They're a reference for
+> implementers, generated from the tokens in §2.2 — not production code.
+
 ### 5.1 Sign in / Sign up
 
 ```
