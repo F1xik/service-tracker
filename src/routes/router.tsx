@@ -8,9 +8,7 @@ import SignUpPage from '@/features/auth/SignUpPage'
 export const router = createBrowserRouter([
   {
     element: <ProtectedRoute />,
-    children: [
-      { path: '/', element: <HomePage /> },
-    ],
+    children: [{ path: '/', element: <HomePage /> }],
   },
   { path: '/sign-in', element: <SignInPage /> },
   { path: '/sign-up', element: <SignUpPage /> },

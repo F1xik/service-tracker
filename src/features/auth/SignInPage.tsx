@@ -44,14 +44,24 @@ export default function SignInPage() {
     <div className="flex min-h-dvh flex-col items-center justify-center gap-6 bg-[var(--color-bg)] px-4 py-12">
       <div className="flex flex-col items-center gap-3 text-center">
         <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--color-primary)]">
-          <Wallet size={28} className="text-[var(--color-primary-fg)]" aria-hidden="true" />
+          <Wallet
+            size={28}
+            className="text-[var(--color-primary-fg)]"
+            aria-hidden="true"
+          />
         </div>
-        <h1 className="text-3xl font-bold tracking-tight text-[var(--color-fg)]">Income</h1>
+        <h1 className="text-3xl font-bold tracking-tight text-[var(--color-fg)]">
+          Income
+        </h1>
         <p className="text-sm text-[var(--color-fg-muted)]">Track what you earn.</p>
       </div>
 
       <Card className="w-full max-w-sm">
-        <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          noValidate
+          className="flex flex-col gap-4"
+        >
           <Field id="email" label="Email" required error={errors.email?.message}>
             <Input
               id="email"
@@ -64,7 +74,12 @@ export default function SignInPage() {
             />
           </Field>
 
-          <Field id="password" label="Password" required error={errors.password?.message}>
+          <Field
+            id="password"
+            label="Password"
+            required
+            error={errors.password?.message}
+          >
             <Input
               id="password"
               type="password"
