@@ -11,7 +11,7 @@ create table profiles (
   id uuid primary key references auth.users on delete cascade,
   display_name text,
   commission_pct numeric not null default 0,
-  currency text not null default 'USD',
+  currency text not null default 'PLN',
   created_at timestamptz not null default now()
 );
 
