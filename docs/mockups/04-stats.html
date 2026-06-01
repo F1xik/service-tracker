@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Mockup · Stats (§5.4)</title>
+    <link rel="stylesheet" href="tokens.css" />
+    <link rel="stylesheet" href="components.css" />
+  </head>
+  <body>
+    <!-- §5.4 Stats. NOTE: the app uses Recharts (React); the charts below are static
+         SVG approximations to show the §4.8 palette + layout, not the live component. -->
+    <main class="screen">
+      <header class="topbar">
+        <span class="title">Stats</span>
+        <button class="btn btn-ghost btn-icon" aria-label="Account menu">
+          <svg class="icon-svg" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="10" r="3"/><path d="M6.7 19a6 6 0 0 1 10.6 0"/></svg>
+        </button>
+      </header>
+
+      <div class="content">
+        <!-- Stat cards -->
+        <div class="row" style="align-items: stretch;">
+          <div class="stat-card grow">
+            <span class="label">All time</span>
+            <span class="value tabular">$4,210</span>
+          </div>
+          <div class="stat-card grow">
+            <span class="label">This month</span>
+            <span class="value tabular">$620</span>
+            <span class="delta up">▲ 12%</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <span class="label">Services this month</span>
+          <span class="value tabular">7</span>
+        </div>
+
+        <!-- Income over time -->
+        <div class="section-header"><h2 class="t-h2">Income over time</h2></div>
+        <div class="segmented" role="tablist" aria-label="Period">
+          <button role="tab">Week</button>
+          <button role="tab" aria-selected="true">Month</button>
+          <button role="tab">Year</button>
+        </div>
+        <div class="card">
+          <svg viewBox="0 0 320 160" width="100%" height="160" role="img" aria-label="Income over time bar chart">
+            <!-- horizontal gridlines (§4.8) -->
+            <g stroke="var(--color-border)" stroke-width="1">
+              <line x1="0" y1="40" x2="320" y2="40" /><line x1="0" y1="80" x2="320" y2="80" /><line x1="0" y1="120" x2="320" y2="120" />
+            </g>
+            <!-- bars, chart-1, rounded tops -->
+            <g fill="var(--color-chart-1)">
+              <rect x="14"  y="96"  width="28" height="48"  rx="4" />
+              <rect x="62"  y="70"  width="28" height="74"  rx="4" />
+              <rect x="110" y="52"  width="28" height="92"  rx="4" />
+              <rect x="158" y="30"  width="28" height="114" rx="4" />
+              <rect x="206" y="60"  width="28" height="84"  rx="4" />
+              <rect x="254" y="44"  width="28" height="100" rx="4" />
+            </g>
+          </svg>
+        </div>
+
+        <!-- Income by service -->
+        <div class="section-header"><h2 class="t-h2">Income by service</h2></div>
+        <div class="card">
+          <div class="row" style="gap: 20px;">
+            <svg viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Income by service donut chart">
+              <!-- donut segments via stroke-dasharray (circumference ≈ 314) -->
+              <g fill="none" stroke-width="18">
+                <circle cx="60" cy="60" r="50" stroke="var(--color-chart-1)" stroke-dasharray="135 179" transform="rotate(-90 60 60)" />
+                <circle cx="60" cy="60" r="50" stroke="var(--color-chart-2)" stroke-dasharray="104 210" stroke-dashoffset="-135" transform="rotate(-90 60 60)" />
+                <circle cx="60" cy="60" r="50" stroke="var(--color-chart-3)" stroke-dasharray="75 239" stroke-dashoffset="-239" transform="rotate(-90 60 60)" />
+              </g>
+              <text x="60" y="56" text-anchor="middle" font-size="11" fill="var(--color-fg-muted)">Total</text>
+              <text x="60" y="72" text-anchor="middle" font-size="16" font-weight="700" fill="var(--color-fg)">$4,210</text>
+            </svg>
+            <div class="legend grow">
+              <div class="row"><span class="dot" style="background: var(--color-chart-1)"></span>Haircut<span class="amt tabular">$1,800 · 43%</span></div>
+              <div class="row"><span class="dot" style="background: var(--color-chart-2)"></span>Massage<span class="amt tabular">$1,400 · 33%</span></div>
+              <div class="row"><span class="dot" style="background: var(--color-chart-3)"></span>Color<span class="amt tabular">$1,010 · 24%</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <nav class="tabbar" aria-label="Primary">
+        <button class="tab">
+          <svg class="icon-svg" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M8 12h8M12 8v8"/></svg>
+          Income
+        </button>
+        <button class="tab">
+          <svg class="icon-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 9V5a2 2 0 0 1 2-2h4l11 11-6 6L2 9Z"/><circle cx="7" cy="8" r="1.5"/></svg>
+          Services
+        </button>
+        <button class="tab" aria-current="page">
+          <svg class="icon-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18"/><rect x="7" y="11" width="3" height="6"/><rect x="13" y="7" width="3" height="10"/></svg>
+          Stats
+        </button>
+        <button class="tab">
+          <svg class="icon-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3M7 8l5-5 5 5"/><path d="M5 21h14"/></svg>
+          Import
+        </button>
+      </nav>
+    </main>
+  </body>
+</html>
