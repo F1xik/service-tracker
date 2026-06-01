@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Mockup · Services &amp; settings (§5.3)</title>
+    <link rel="stylesheet" href="tokens.css" />
+    <link rel="stylesheet" href="components.css" />
+  </head>
+  <body>
+    <!-- §5.3 Services & settings -->
+    <main class="screen">
+      <header class="topbar">
+        <span class="title">Services</span>
+        <button class="btn btn-ghost btn-icon" aria-label="Account menu">
+          <svg class="icon-svg" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="10" r="3"/><path d="M6.7 19a6 6 0 0 1 10.6 0"/></svg>
+        </button>
+      </header>
+
+      <div class="content">
+        <!-- Settings -->
+        <div class="section-header"><h2 class="t-h2">Settings</h2></div>
+        <div class="card">
+          <div class="card-body">
+            <div class="row" style="align-items: flex-start;">
+              <div class="field grow">
+                <label for="comm">Commission</label>
+                <div class="input amount" id="comm"><span>15</span><span class="affix">%</span></div>
+              </div>
+              <div class="field grow">
+                <label for="cur">Currency</label>
+                <div class="input select" id="cur"><span>USD</span>
+                  <svg class="icon-svg sm fg-subtle" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                </div>
+              </div>
+            </div>
+            <div class="alert info" role="note">
+              <svg class="icon-svg sm icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+              <span>Applies to new entries only. Past entries keep their saved snapshot.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Services list -->
+        <div class="section-header">
+          <h2 class="t-h2">Services</h2>
+          <button class="btn btn-secondary">
+            <svg class="icon-svg sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M12 5v14"/></svg>
+            Add
+          </button>
+        </div>
+        <div class="card" style="padding: 8px 16px;">
+          <div class="list">
+            <div class="list-item">
+              <div class="grow"><div class="primary">Haircut</div><div class="secondary tabular">$40.00</div></div>
+              <span class="switch on" role="switch" aria-checked="true" aria-label="Active"></span>
+              <button class="btn btn-ghost btn-icon" aria-label="More actions">
+                <svg class="icon-svg sm" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>
+              </button>
+            </div>
+            <div class="list-item">
+              <div class="grow"><div class="primary">Massage</div><div class="secondary tabular">$90.00</div></div>
+              <span class="switch on" role="switch" aria-checked="true" aria-label="Active"></span>
+              <button class="btn btn-ghost btn-icon" aria-label="More actions">
+                <svg class="icon-svg sm" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>
+              </button>
+            </div>
+            <div class="list-item muted">
+              <div class="grow">
+                <div class="primary">Old package <span class="badge neutral">Inactive</span></div>
+                <div class="secondary tabular">$30.00</div>
+              </div>
+              <span class="switch" role="switch" aria-checked="false" aria-label="Inactive"></span>
+              <button class="btn btn-ghost btn-icon" aria-label="More actions">
+                <svg class="icon-svg sm" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <nav class="tabbar" aria-label="Primary">
+        <button class="tab">
+          <svg class="icon-svg" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M8 12h8M12 8v8"/></svg>
+          Income
+        </button>
+        <button class="tab" aria-current="page">
+          <svg class="icon-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 9V5a2 2 0 0 1 2-2h4l11 11-6 6L2 9Z"/><circle cx="7" cy="8" r="1.5"/></svg>
+          Services
+        </button>
+        <button class="tab">
+          <svg class="icon-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18"/><rect x="7" y="11" width="3" height="6"/><rect x="13" y="7" width="3" height="10"/></svg>
+          Stats
+        </button>
+        <button class="tab">
+          <svg class="icon-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3M7 8l5-5 5 5"/><path d="M5 21h14"/></svg>
+          Import
+        </button>
+      </nav>
+
+      <!-- Add/Edit dialog — bottom sheet on mobile (§5.3) -->
+      <div class="scrim">
+        <div class="dialog" role="dialog" aria-modal="true" aria-label="Add service">
+          <div class="handle" aria-hidden="true"></div>
+          <div class="between">
+            <h3 class="t-h3">Add service</h3>
+            <button class="btn btn-ghost btn-icon" aria-label="Close">
+              <svg class="icon-svg sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            </button>
+          </div>
+          <div class="field">
+            <label for="name">Name</label>
+            <input class="input" id="name" value="Beard trim" />
+          </div>
+          <div class="field">
+            <label for="np">Price</label>
+            <div class="input amount is-focus" id="np"><span class="affix">$</span><span>20.00</span></div>
+          </div>
+          <div class="row" style="justify-content: flex-end;">
+            <button class="btn btn-secondary">Cancel</button>
+            <button class="btn btn-primary">Save</button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </body>
+</html>

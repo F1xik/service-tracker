@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Mockup · Sign in (§5.1)</title>
+    <link rel="stylesheet" href="tokens.css" />
+    <link rel="stylesheet" href="components.css" />
+  </head>
+  <body>
+    <!-- §5.1 Sign in / Sign up — centered card, vertically centered on bg -->
+    <main class="screen" style="justify-content: center;">
+      <div class="content" style="justify-content: center; align-items: center;">
+        <div style="display: flex; flex-direction: column; gap: 8px; text-align: center;">
+          <div class="brand" aria-hidden="true">
+            <svg class="icon-svg" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+          </div>
+          <h1 class="t-h1">Income</h1>
+          <p class="t-caption fg-muted">Track what you earn.</p>
+        </div>
+
+        <div class="card" style="width: 100%; max-width: 400px;">
+          <div class="card-body">
+            <div class="field">
+              <label for="email">Email</label>
+              <input class="input" id="email" type="email" value="alex@studio.co" />
+            </div>
+            <div class="field">
+              <label for="pw">Password</label>
+              <input class="input" id="pw" type="password" value="••••••••••" />
+            </div>
+
+            <!-- inline auth error (§5.1 error state) -->
+            <div class="alert error" role="alert">
+              <svg class="icon-svg sm icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+              <span>Invalid email or password.</span>
+            </div>
+
+            <button class="btn btn-primary block">Sign in</button>
+          </div>
+        </div>
+
+        <p class="t-sm fg-muted">New here? <span class="fg-primary" style="font-weight: 600;">Create account</span></p>
+      </div>
+    </main>
+  </body>
+</html>
