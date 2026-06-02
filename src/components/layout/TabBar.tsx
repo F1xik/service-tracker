@@ -11,7 +11,7 @@ interface TabConfig {
 const tabs: TabConfig[] = [
   { to: '/', label: 'Income', icon: PlusCircle },
   { to: '/services', label: 'Services', icon: Tag },
-  { to: '/stats', label: 'Stats', icon: BarChart3, disabled: true },
+  { to: '/stats', label: 'Stats', icon: BarChart3 },
   { to: '/import', label: 'Import', icon: Upload, disabled: true },
 ]
 

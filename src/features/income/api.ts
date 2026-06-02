@@ -70,6 +70,22 @@ export async function getEntries(limit = 20): Promise<IncomeEntryWithService[]> 
   return data ?? []
 }
 
+/**
+ * Fetch every entry for the user with its service name, oldest first.
+ *
+ * Used by the stats dashboard, which needs the full history (not the capped
+ * recent list). RLS scopes rows to the logged-in user, so no explicit
+ * `user_id` filter is required.
+ */
+export async function getAllEntries(): Promise<IncomeEntryWithService[]> {
+  const { data, error } = await supabase
+    .from('income_entries')
+    .select('*, service:services(name)')
+    .order('provided_on', { ascending: true })
+  if (error) throw error
+  return data ?? []
+}
+
 export async function deleteEntry(id: string): Promise<void> {
   const { error } = await supabase.from('income_entries').delete().eq('id', id)
   if (error) throw error
