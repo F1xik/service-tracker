@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest'
 
 import type { IncomeEntryWithService } from '@/features/income/api'
-import { groupByPeriod, groupByService, summarize } from './aggregations'
+import {
+  filterToRange,
+  groupByRange,
+  groupByService,
+  rangeBounds,
+} from './aggregations'
+
+// Reference "now": Monday 2026-06-15 (so the week window is Jun 15–21).
+const now = new Date(2026, 5, 15)
 
 function entry(
   overrides: Partial<IncomeEntryWithService> = {},
@@ -23,54 +31,131 @@ function entry(
   }
 }
 
-describe('groupByPeriod', () => {
-  it('returns [] for empty input', () => {
-    expect(groupByPeriod([], 'month')).toEqual([])
+describe('rangeBounds', () => {
+  it('today is a single-day window', () => {
+    const { start, end } = rangeBounds('today', now)
+    expect(start).toEqual(new Date(2026, 5, 15))
+    expect(end).toEqual(new Date(2026, 5, 16))
   })
 
-  it('sums amount_earned per month, ascending', () => {
-    const result = groupByPeriod(
-      [
-        entry({ provided_on: '2026-05-01', amount_earned: 5 }),
-        entry({ provided_on: '2026-06-10', amount_earned: 10 }),
-        entry({ provided_on: '2026-06-20', amount_earned: 7 }),
-      ],
-      'month',
-    )
-    expect(result).toEqual([
-      { label: 'May 2026', total: 5 },
-      { label: 'Jun 2026', total: 17 },
-    ])
+  it('week starts on Monday and spans 7 days', () => {
+    // 2026-06-17 is a Wednesday; its week starts Monday 2026-06-15.
+    const { start, end } = rangeBounds('week', new Date(2026, 5, 17))
+    expect(start).toEqual(new Date(2026, 5, 15))
+    expect(end).toEqual(new Date(2026, 5, 22))
   })
 
-  it('sums per year', () => {
-    const result = groupByPeriod(
-      [
-        entry({ provided_on: '2025-12-31', amount_earned: 4 }),
-        entry({ provided_on: '2026-01-01', amount_earned: 6 }),
-      ],
-      'year',
-    )
-    expect(result).toEqual([
-      { label: '2025', total: 4 },
-      { label: '2026', total: 6 },
-    ])
+  it('month spans the calendar month', () => {
+    const { start, end } = rangeBounds('month', now)
+    expect(start).toEqual(new Date(2026, 5, 1))
+    expect(end).toEqual(new Date(2026, 6, 1))
   })
 
-  it('orders week buckets chronologically across a year boundary', () => {
-    // Dec 30 2025 and Jan 2 2026 both fall in ISO week 2026-W01; Jan 5 2026 is
-    // ISO week 2026-W02. A naive label sort ("W1" vs "W2" vs "W52") would break;
-    // the sortable key keeps them ordered.
-    const result = groupByPeriod(
+  it('year spans the calendar year', () => {
+    const { start, end } = rangeBounds('year', now)
+    expect(start).toEqual(new Date(2026, 0, 1))
+    expect(end).toEqual(new Date(2027, 0, 1))
+  })
+})
+
+describe('filterToRange', () => {
+  it('keeps only entries inside the window', () => {
+    const result = filterToRange(
       [
-        entry({ provided_on: '2025-12-22', amount_earned: 1 }), // 2025-W52
-        entry({ provided_on: '2026-01-05', amount_earned: 3 }), // 2026-W02
-        entry({ provided_on: '2025-12-30', amount_earned: 2 }), // 2026-W01
+        entry({ provided_on: '2026-06-10', amount_earned: 1 }), // before week
+        entry({ provided_on: '2026-06-15', amount_earned: 2 }), // Monday, in week
+        entry({ provided_on: '2026-06-21', amount_earned: 3 }), // Sunday, in week
+        entry({ provided_on: '2026-06-22', amount_earned: 4 }), // next Monday, out
       ],
       'week',
+      now,
     )
-    expect(result.map((r) => r.label)).toEqual(['W52 2025', 'W1 2026', 'W2 2026'])
-    expect(result.map((r) => r.total)).toEqual([1, 2, 3])
+    expect(result.map((e) => e.amount_earned)).toEqual([2, 3])
+  })
+})
+
+describe('groupByRange', () => {
+  it('today returns a single bucket', () => {
+    const result = groupByRange(
+      [
+        entry({ provided_on: '2026-06-15', amount_earned: 10 }),
+        entry({ provided_on: '2026-06-15', amount_earned: 5 }),
+        entry({ provided_on: '2026-06-14', amount_earned: 99 }), // yesterday, excluded
+      ],
+      'today',
+      now,
+    )
+    expect(result).toEqual([{ label: 'Today', total: 15, count: 2 }])
+  })
+
+  it('week has 7 zero-filled daily buckets Mon..Sun with totals and counts', () => {
+    const result = groupByRange(
+      [
+        entry({ provided_on: '2026-06-15', amount_earned: 10 }), // Mon
+        entry({ provided_on: '2026-06-15', amount_earned: 4 }), // Mon
+        entry({ provided_on: '2026-06-17', amount_earned: 7 }), // Wed
+      ],
+      'week',
+      now,
+    )
+    expect(result.map((b) => b.label)).toEqual([
+      'Mon',
+      'Tue',
+      'Wed',
+      'Thu',
+      'Fri',
+      'Sat',
+      'Sun',
+    ])
+    expect(result.map((b) => b.total)).toEqual([14, 0, 7, 0, 0, 0, 0])
+    expect(result.map((b) => b.count)).toEqual([2, 0, 1, 0, 0, 0, 0])
+  })
+
+  it('month has one bucket per day with the day number as label', () => {
+    const result = groupByRange(
+      [entry({ provided_on: '2026-06-15', amount_earned: 12 })],
+      'month',
+      now,
+    )
+    expect(result).toHaveLength(30) // June
+    expect(result[0].label).toBe('1')
+    expect(result[29].label).toBe('30')
+    expect(result[14]).toEqual({ label: '15', total: 12, count: 1 })
+  })
+
+  it('year has 12 monthly buckets Jan..Dec', () => {
+    const result = groupByRange(
+      [
+        entry({ provided_on: '2026-01-05', amount_earned: 3 }),
+        entry({ provided_on: '2026-06-15', amount_earned: 10 }),
+        entry({ provided_on: '2025-12-31', amount_earned: 99 }), // last year, excluded
+      ],
+      'year',
+      now,
+    )
+    expect(result).toHaveLength(12)
+    expect(result.map((b) => b.label)).toEqual([
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ])
+    expect(result[0]).toEqual({ label: 'Jan', total: 3, count: 1 })
+    expect(result[5]).toEqual({ label: 'Jun', total: 10, count: 1 })
+  })
+
+  it('returns zero-filled buckets for empty input', () => {
+    const result = groupByRange([], 'week', now)
+    expect(result).toHaveLength(7)
+    expect(result.every((b) => b.total === 0 && b.count === 0)).toBe(true)
   })
 })
 
@@ -96,29 +181,5 @@ describe('groupByService', () => {
       entry({ service: null, service_id: null, amount_earned: 8 }),
     ])
     expect(result).toEqual([{ name: 'Unknown service', total: 8 }])
-  })
-})
-
-describe('summarize', () => {
-  const now = new Date(2026, 5, 15) // 2026-06-15
-
-  it('returns zeros for empty input', () => {
-    expect(summarize([], now)).toEqual({
-      allTime: 0,
-      thisMonth: 0,
-      entriesThisMonth: 0,
-    })
-  })
-
-  it('separates this-month totals from earlier months', () => {
-    const result = summarize(
-      [
-        entry({ provided_on: '2026-06-01', amount_earned: 10 }),
-        entry({ provided_on: '2026-06-20', amount_earned: 15 }),
-        entry({ provided_on: '2026-05-30', amount_earned: 100 }),
-      ],
-      now,
-    )
-    expect(result).toEqual({ allTime: 125, thisMonth: 25, entriesThisMonth: 2 })
   })
 })
