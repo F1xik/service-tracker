@@ -1,0 +1,257 @@
+import { useForm, useFieldArray, useWatch } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
+import { Plus, Trash2 } from 'lucide-react'
+import { computeEarnings, type Service } from '@/lib/calc'
+import { formatPrice } from '@/lib/format'
+
+import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
+import { Field } from '@/components/ui/Field'
+import { Alert } from '@/components/ui/Alert'
+
+const lineSchema = z.object({
+  service_id: z.string().min(1, 'Pick a service'),
+  price: z.coerce.number().positive('Price must be greater than 0'),
+})
+
+const schema = z.object({
+  provided_on: z.string().min(1, 'Date is required'),
+  customer: z.string().trim().max(100, 'Customer must be 100 characters or fewer'),
+  note: z.string().trim().max(500, 'Note must be 500 characters or fewer'),
+  lines: z.array(lineSchema).min(1, 'Add at least one service'),
+})
+
+export type EntryFormValues = z.infer<typeof schema>
+
+/** Local YYYY-MM-DD for "today" (avoids the UTC off-by-one of toISOString). */
+function localToday(): string {
+  const now = new Date()
+  const y = now.getFullYear()
+  const m = String(now.getMonth() + 1).padStart(2, '0')
+  const d = String(now.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+const selectClassName = [
+  'h-11 w-full rounded-[var(--radius-md)] border px-3 text-sm text-[var(--color-fg)]',
+  'bg-[var(--color-surface)] outline-none transition-colors duration-[var(--duration-fast)]',
+  'focus-visible:ring-2 focus-visible:ring-[var(--color-ring)] focus-visible:ring-offset-0',
+  'border-[var(--color-border-strong)] hover:border-[var(--color-fg-muted)]',
+].join(' ')
+
+interface EntryFormProps {
+  activeServices: Service[]
+  commissionPct: number
+  currency: string
+  onSubmit: (values: EntryFormValues) => void | Promise<void>
+  submitting?: boolean
+  submitError?: string | null
+}
+
+export function EntryForm({
+  activeServices,
+  commissionPct,
+  currency,
+  onSubmit,
+  submitting = false,
+  submitError,
+}: EntryFormProps) {
+  const {
+    register,
+    control,
+    handleSubmit,
+    setValue,
+    formState: { errors },
+  } = useForm<EntryFormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: {
+      provided_on: localToday(),
+      customer: '',
+      note: '',
+      lines: [{ service_id: '', price: undefined as unknown as number }],
+    },
+  })
+
+  const { fields, append, remove } = useFieldArray({ control, name: 'lines' })
+
+  const lines = useWatch({ control, name: 'lines' })
+  const total = lines.reduce((sum, line) => {
+    const price = Number(line?.price)
+    return (
+      sum +
+      (Number.isFinite(price) && price > 0 ? computeEarnings(price, commissionPct) : 0)
+    )
+  }, 0)
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-5">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Field
+          id="provided_on"
+          label="Date"
+          required
+          error={errors.provided_on?.message}
+        >
+          <Input
+            id="provided_on"
+            type="date"
+            error={!!errors.provided_on}
+            aria-describedby={errors.provided_on ? 'provided_on-error' : undefined}
+            {...register('provided_on')}
+          />
+        </Field>
+
+        <Field id="customer" label="Customer" error={errors.customer?.message}>
+          <Input
+            id="customer"
+            placeholder="Optional"
+            error={!!errors.customer}
+            aria-describedby={errors.customer ? 'customer-error' : undefined}
+            {...register('customer')}
+          />
+        </Field>
+      </div>
+
+      <Field id="note" label="Note" error={errors.note?.message}>
+        <Input
+          id="note"
+          placeholder="Optional"
+          error={!!errors.note}
+          aria-describedby={errors.note ? 'note-error' : undefined}
+          {...register('note')}
+        />
+      </Field>
+
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-medium text-[var(--color-fg)]">Services</h2>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() =>
+              append({ service_id: '', price: undefined as unknown as number })
+            }
+          >
+            <Plus size={16} aria-hidden="true" />
+            Add service
+          </Button>
+        </div>
+
+        {errors.lines?.root && (
+          <Alert variant="error">{errors.lines.root.message}</Alert>
+        )}
+
+        {fields.map((field, index) => {
+          const lineErrors = errors.lines?.[index]
+          const price = Number(lines?.[index]?.price)
+          const earned =
+            Number.isFinite(price) && price > 0
+              ? computeEarnings(price, commissionPct)
+              : 0
+          const serviceReg = register(`lines.${index}.service_id`)
+
+          return (
+            <div
+              key={field.id}
+              className="rounded-[var(--radius-md)] border border-[var(--color-border)] p-3"
+            >
+              <div className="flex items-start gap-3">
+                <div className="grid min-w-0 grow grid-cols-1 gap-3 sm:grid-cols-2">
+                  <Field
+                    id={`service-${index}`}
+                    label="Service"
+                    required
+                    error={lineErrors?.service_id?.message}
+                  >
+                    <select
+                      id={`service-${index}`}
+                      className={selectClassName}
+                      aria-invalid={lineErrors?.service_id ? true : undefined}
+                      {...serviceReg}
+                      onChange={(e) => {
+                        serviceReg.onChange(e)
+                        const svc = activeServices.find((s) => s.id === e.target.value)
+                        if (svc) {
+                          setValue(`lines.${index}.price`, svc.price, {
+                            shouldValidate: true,
+                            shouldDirty: true,
+                          })
+                        }
+                      }}
+                    >
+                      <option value="">Select a service…</option>
+                      {activeServices.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+
+                  <Field
+                    id={`price-${index}`}
+                    label="Price"
+                    required
+                    error={lineErrors?.price?.message}
+                  >
+                    <div className="relative">
+                      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[var(--color-fg-subtle)]">
+                        {currency}
+                      </span>
+                      <Input
+                        id={`price-${index}`}
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        inputMode="decimal"
+                        placeholder="0.00"
+                        error={!!lineErrors?.price}
+                        className="pl-14"
+                        {...register(`lines.${index}.price`)}
+                      />
+                    </div>
+                  </Field>
+                </div>
+
+                {fields.length > 1 && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    aria-label={`Remove service ${index + 1}`}
+                    onClick={() => remove(index)}
+                  >
+                    <Trash2 size={18} aria-hidden="true" />
+                  </Button>
+                )}
+              </div>
+
+              <p className="mt-2 text-xs text-[var(--color-fg-muted)]">
+                You earn{' '}
+                <span className="font-medium tabular-nums text-[var(--color-fg)]">
+                  {formatPrice(earned, currency)}
+                </span>{' '}
+                ({commissionPct}% commission)
+              </p>
+            </div>
+          )
+        })}
+      </div>
+
+      <div className="flex items-center justify-between border-t border-[var(--color-border)] pt-4">
+        <span className="text-sm text-[var(--color-fg-muted)]">Total earned</span>
+        <span className="text-lg font-semibold tabular-nums text-[var(--color-fg)]">
+          {formatPrice(total, currency)}
+        </span>
+      </div>
+
+      {submitError && <Alert variant="error">{submitError}</Alert>}
+
+      <Button type="submit" loading={submitting} fullWidth>
+        Log income
+      </Button>
+    </form>
+  )
+}

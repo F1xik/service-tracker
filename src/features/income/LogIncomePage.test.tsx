@@ -1,0 +1,175 @@
+import { render, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { MemoryRouter } from 'react-router-dom'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { Service } from '@/lib/calc'
+
+import type { IncomeEntryWithService } from './api'
+
+const createMutateAsync = vi.hoisted(() => vi.fn())
+const deleteMutate = vi.hoisted(() => vi.fn())
+
+const state = vi.hoisted(() => ({
+  profile: {
+    isLoading: false,
+    isError: false,
+    data: { currency: 'USD', commission_pct: 15 },
+  },
+  services: {
+    isLoading: false,
+    isError: false,
+    data: [] as Service[],
+  },
+  entries: {
+    isLoading: false,
+    isError: false,
+    error: null as unknown,
+    data: [] as IncomeEntryWithService[],
+  },
+}))
+
+vi.mock('@/features/services/useServices', () => ({
+  useProfile: () => state.profile,
+  useServices: () => state.services,
+}))
+
+vi.mock('./useIncome', () => ({
+  useEntries: () => state.entries,
+  useCreateEntries: () => ({ mutateAsync: createMutateAsync, isPending: false }),
+  useDeleteEntry: () => ({ mutate: deleteMutate }),
+}))
+
+import LogIncomePage from './LogIncomePage'
+
+function service(overrides: Partial<Service> = {}): Service {
+  return {
+    id: 's1',
+    user_id: 'u1',
+    name: 'Haircut',
+    price: 40,
+    active: true,
+    created_at: '2026-01-01T00:00:00Z',
+    ...overrides,
+  }
+}
+
+function entry(
+  overrides: Partial<IncomeEntryWithService> = {},
+): IncomeEntryWithService {
+  return {
+    id: 'e1',
+    user_id: 'u1',
+    service_id: 's1',
+    provided_on: '2026-06-02',
+    price_snapshot: 40,
+    commission_pct_snapshot: 15,
+    amount_earned: 6,
+    customer: null,
+    note: null,
+    source: 'manual',
+    created_at: '2026-06-02T00:00:00Z',
+    service: { name: 'Haircut' },
+    ...overrides,
+  }
+}
+
+function renderPage() {
+  return render(
+    <MemoryRouter>
+      <LogIncomePage />
+    </MemoryRouter>,
+  )
+}
+
+beforeEach(() => {
+  vi.clearAllMocks()
+  createMutateAsync.mockResolvedValue(undefined)
+  state.profile = {
+    isLoading: false,
+    isError: false,
+    data: { currency: 'USD', commission_pct: 15 },
+  }
+  state.services = { isLoading: false, isError: false, data: [service()] }
+  state.entries = { isLoading: false, isError: false, error: null, data: [] }
+})
+
+describe('LogIncomePage', () => {
+  it('shows a spinner while setup queries load', () => {
+    state.services = { isLoading: true, isError: false, data: [] }
+    renderPage()
+    expect(screen.getByRole('status', { name: 'Loading form' })).toBeInTheDocument()
+  })
+
+  it('guides the user to add a service when none are active', () => {
+    state.services = {
+      isLoading: false,
+      isError: false,
+      data: [service({ active: false })],
+    }
+    renderPage()
+    expect(screen.getByText(/no active services/i)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Add a service first/ })).toHaveAttribute(
+      'href',
+      '/services',
+    )
+    expect(screen.queryByRole('button', { name: 'Log income' })).not.toBeInTheDocument()
+  })
+
+  it('renders recent entries with service name and earned amount', () => {
+    state.entries.data = [entry({ amount_earned: 6, service: { name: 'Massage' } })]
+    renderPage()
+    const list = screen.getByRole('list')
+    expect(within(list).getByText('Massage')).toBeInTheDocument()
+    expect(within(list).getByText('$6.00')).toBeInTheDocument()
+  })
+
+  it('deletes an entry after confirmation', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    state.entries.data = [entry()]
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: 'Delete entry' }))
+    expect(deleteMutate).toHaveBeenCalledWith('e1')
+  })
+
+  it('submits the batch with a trimmed, assembled payload', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.selectOptions(screen.getByLabelText(/Service/), 's1')
+    await user.click(screen.getByRole('button', { name: 'Log income' }))
+
+    await waitFor(() => expect(createMutateAsync).toHaveBeenCalledTimes(1))
+    expect(createMutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        commissionPct: 15,
+        customer: null,
+        note: null,
+        lines: [{ service_id: 's1', price: 40 }],
+      }),
+    )
+  })
+
+  it('surfaces an error when the mutation fails', async () => {
+    createMutateAsync.mockRejectedValue(new Error('Save failed'))
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.selectOptions(screen.getByLabelText(/Service/), 's1')
+    await user.click(screen.getByRole('button', { name: 'Log income' }))
+
+    expect(await screen.findByText('Save failed')).toBeInTheDocument()
+  })
+
+  it('shows an error alert when entries fail to load', () => {
+    state.entries = {
+      isLoading: false,
+      isError: true,
+      error: new Error('Network down'),
+      data: [],
+    }
+    renderPage()
+    expect(screen.getByText('Network down')).toBeInTheDocument()
+  })
+})

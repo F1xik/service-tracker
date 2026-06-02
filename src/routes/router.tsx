@@ -2,7 +2,7 @@ import { createBrowserRouter } from 'react-router-dom'
 
 import { ProtectedRoute } from './ProtectedRoute'
 import { AppLayout } from '@/components/layout/AppLayout'
-import HomePage from './HomePage'
+import LogIncomePage from '@/features/income/LogIncomePage'
 import ServicesPage from '@/features/services/ServicesPage'
 import SignInPage from '@/features/auth/SignInPage'
 import SignUpPage from '@/features/auth/SignUpPage'
@@ -14,7 +14,7 @@ export const router = createBrowserRouter([
       {
         element: <AppLayout />,
         children: [
-          { path: '/', element: <HomePage /> },
+          { path: '/', element: <LogIncomePage /> },
           { path: '/services', element: <ServicesPage /> },
         ],
       },
