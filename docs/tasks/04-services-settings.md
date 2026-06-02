@@ -18,7 +18,7 @@ A screen where the user can manage their list of services (name + price, activat
 - **Edit**: inline or modal edit of name and price.
 - **Deactivate / reactivate**: toggle `active`; deactivated services don't appear in the income log picker.
 - **Commission %**: a single numeric input (0–100) stored on `profiles.commission_pct`. Changes apply to future entries only (past entries snapshot the old value).
-- **Currency**: optional selector (default USD) stored on `profiles.currency`.
+- **Currency**: optional selector (default PLN) stored on `profiles.currency`.
 
 ## Forms
 
