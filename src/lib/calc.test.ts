@@ -26,11 +26,13 @@ describe('computeEarnings', () => {
     expect(computeEarnings(100.5, 1)).toBe(1.01)
   })
 
+  it('rounds the half-cent boundary up for large amounts too', () => {
+    // 1_000_000.5 * 1 / 100 = 10000.005 — a fixed Number.EPSILON nudge is too
+    // small to correct float error at this magnitude.
+    expect(computeEarnings(1_000_000.5, 1)).toBe(10_000.01)
+  })
+
   it('matches the data-model invariant amount = price * pct / 100', () => {
-    const price = 249.99
-    const pct = 15
-    expect(computeEarnings(price, pct)).toBe(
-      Math.round((price * (pct / 100) + Number.EPSILON) * 100) / 100,
-    )
+    expect(computeEarnings(249.99, 15)).toBe(37.5)
   })
 })
