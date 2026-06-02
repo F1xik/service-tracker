@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { IncomeEntryWithService } from '@/features/income/api'
 
@@ -18,18 +18,27 @@ vi.mock('./useStats', () => ({ useStats: () => state.stats }))
 vi.mock('@/features/services/useServices', () => ({ useProfile: () => state.profile }))
 
 // Recharts relies on layout measurements jsdom can't provide. Stub the chart
-// primitives so the page renders; we capture the bar chart's data to assert the
-// period toggle re-feeds it.
-const barChartData = vi.hoisted(() => ({ current: null as unknown }))
+// primitives so the page renders; we capture each bar chart's data (keyed by the
+// Bar's dataKey) to assert the range filter re-feeds both charts.
+const barData = vi.hoisted(() => ({ current: {} as Record<string, unknown[]> }))
 vi.mock('recharts', () => {
   const Passthrough = ({ children }: { children?: React.ReactNode }) => (
     <div>{children}</div>
   )
   return {
     ResponsiveContainer: Passthrough,
-    BarChart: ({ data, children }: { data: unknown; children?: React.ReactNode }) => {
-      barChartData.current = data
-      return <div data-testid="bar-chart">{children}</div>
+    BarChart: ({ data, children }: { data: unknown[]; children?: React.ReactNode }) => {
+      // The Bar child declares which dataKey this chart renders.
+      const bars = Array.isArray(children) ? children.flat(Infinity) : [children]
+      const bar = bars.find(
+        (c) => c?.props?.dataKey === 'total' || c?.props?.dataKey === 'count',
+      )
+      if (bar?.props?.dataKey) barData.current[bar.props.dataKey] = data
+      return (
+        <div data-testid={`bar-chart-${bar?.props?.dataKey ?? 'unknown'}`}>
+          {children}
+        </div>
+      )
     },
     Bar: Passthrough,
     XAxis: Passthrough,
@@ -67,42 +76,68 @@ function entry(
 describe('StatsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    barChartData.current = null
+    // Window math depends on "now": pin to Monday 2026-06-15. Fake only Date so
+    // userEvent's real timers keep working.
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(2026, 5, 15, 12))
+    barData.current = {}
     state.stats = { isLoading: false, isError: false, error: null, data: [] }
     state.profile = { data: { currency: 'PLN', commission_pct: 15 } }
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('shows an empty state when there are no entries', () => {
     render(<StatsPage />)
     expect(screen.getByText(/no income logged yet/i)).toBeInTheDocument()
-    expect(screen.queryByTestId('bar-chart')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('bar-chart-total')).not.toBeInTheDocument()
   })
 
-  it('renders the summary cards from the entries', () => {
+  it('renders both bar charts with windowed data', () => {
     state.stats.data = [
-      entry({ provided_on: '2026-06-01', amount_earned: 10 }),
-      entry({ provided_on: '2026-06-10', amount_earned: 15 }),
+      entry({ provided_on: '2026-06-15', amount_earned: 10 }),
+      entry({ provided_on: '2026-06-15', amount_earned: 15 }),
     ]
     render(<StatsPage />)
-    expect(screen.getByText('All-time')).toBeInTheDocument()
-    // Two entries logged this month.
-    expect(screen.getByText('Entries this month')).toBeInTheDocument()
-    expect(screen.getByText('2')).toBeInTheDocument()
+    // Defaults to Month → one bucket per day of June (30 buckets).
+    expect(barData.current.total).toHaveLength(30)
+    expect(barData.current.count).toHaveLength(30)
+    // No summary cards anymore.
+    expect(screen.queryByText('All-time')).not.toBeInTheDocument()
   })
 
-  it('re-feeds the bar chart when the period toggle changes', async () => {
+  it('re-feeds both charts when the range changes', async () => {
     const user = userEvent.setup()
-    state.stats.data = [
-      entry({ provided_on: '2026-05-10', amount_earned: 5 }),
-      entry({ provided_on: '2026-06-10', amount_earned: 10 }),
-    ]
+    state.stats.data = [entry({ provided_on: '2026-06-15', amount_earned: 10 })]
     render(<StatsPage />)
 
-    // Defaults to Month: two month buckets.
-    expect(barChartData.current).toHaveLength(2)
+    // Month → 30 daily buckets.
+    expect(barData.current.total).toHaveLength(30)
 
     await user.click(screen.getByRole('button', { name: 'Year' }))
-    // Both entries fall in 2026 → one year bucket.
-    expect(barChartData.current).toHaveLength(1)
+    // Year → 12 monthly buckets.
+    expect(barData.current.total).toHaveLength(12)
+    expect(barData.current.count).toHaveLength(12)
+
+    await user.click(screen.getByRole('button', { name: 'Week' }))
+    // Week → 7 daily buckets.
+    expect(barData.current.total).toHaveLength(7)
+  })
+
+  it('shows a window message when no entries fall in the selected range', async () => {
+    const user = userEvent.setup()
+    // Entry exists, but in a prior month; default range is the current month.
+    state.stats.data = [entry({ provided_on: '2026-01-10', amount_earned: 10 })]
+    render(<StatsPage />)
+
+    expect(screen.getByText(/no income in this period/i)).toBeInTheDocument()
+    expect(screen.queryByTestId('bar-chart-total')).not.toBeInTheDocument()
+
+    // Switching to Year brings the January entry into the window.
+    await user.click(screen.getByRole('button', { name: 'Year' }))
+    expect(screen.queryByText(/no income in this period/i)).not.toBeInTheDocument()
+    expect(screen.getByTestId('bar-chart-total')).toBeInTheDocument()
   })
 })

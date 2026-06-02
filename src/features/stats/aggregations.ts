@@ -4,26 +4,25 @@
  * This module must have zero React imports so it stays unit-testable in
  * isolation. It sums the immutable `amount_earned` snapshots — earnings are
  * never recomputed here.
+ *
+ * The dashboard is windowed: a selected `Range` (today/week/month/year) defines
+ * a time window plus the x-axis bucketing, and every chart shows only the
+ * entries inside that window.
  */
 
 import type { IncomeEntryWithService } from '@/features/income/api'
 
-export type Period = 'week' | 'month' | 'year'
+export type Range = 'today' | 'week' | 'month' | 'year'
 
-export interface PeriodTotal {
+export interface RangeBucket {
   label: string
   total: number
+  count: number
 }
 
 export interface ServiceTotal {
   name: string
   total: number
-}
-
-export interface StatsSummary {
-  allTime: number
-  thisMonth: number
-  entriesThisMonth: number
 }
 
 const MONTH_NAMES = [
@@ -41,6 +40,9 @@ const MONTH_NAMES = [
   'Dec',
 ]
 
+// Monday-first weekday labels, aligned with a Monday-start week window.
+const WEEKDAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+
 /**
  * Parse a date-only `provided_on` string (YYYY-MM-DD) into a local Date.
  * Mirrors the parsing used elsewhere so days never shift across the UTC line.
@@ -50,63 +52,119 @@ function parseProvidedOn(value: string): Date {
   return new Date(y, (m ?? 1) - 1, d ?? 1)
 }
 
-/** ISO 8601 week number and week-numbering year for a given date. */
-function isoWeek(date: Date): { year: number; week: number } {
-  // Copy and shift to the nearest Thursday (ISO weeks belong to the year of
-  // their Thursday). Days are 1 (Mon) .. 7 (Sun) in ISO terms.
+/** Midnight at the Monday that starts the week containing `date`. */
+function startOfWeek(date: Date): Date {
   const d = new Date(date.getFullYear(), date.getMonth(), date.getDate())
-  const day = (d.getDay() + 6) % 7 // 0 = Monday
-  d.setDate(d.getDate() - day + 3) // move to Thursday of this week
-  const isoYear = d.getFullYear()
-  const firstThursday = new Date(isoYear, 0, 4)
-  const firstDay = (firstThursday.getDay() + 6) % 7
-  firstThursday.setDate(firstThursday.getDate() - firstDay + 3)
-  const week = 1 + Math.round((d.getTime() - firstThursday.getTime()) / (7 * 86400000))
-  return { year: isoYear, week }
-}
-
-/** Sortable key + display label for one entry under the given period. */
-function periodBucket(date: Date, period: Period): { key: string; label: string } {
-  const year = date.getFullYear()
-  if (period === 'year') {
-    return { key: String(year), label: String(year) }
-  }
-  if (period === 'month') {
-    const month = date.getMonth()
-    return {
-      key: `${year}-${String(month + 1).padStart(2, '0')}`,
-      label: `${MONTH_NAMES[month]} ${year}`,
-    }
-  }
-  // week
-  const { year: isoYear, week } = isoWeek(date)
-  return {
-    key: `${isoYear}-W${String(week).padStart(2, '0')}`,
-    label: `W${week} ${isoYear}`,
-  }
+  const day = (d.getDay() + 6) % 7 // 0 = Monday .. 6 = Sunday
+  d.setDate(d.getDate() - day)
+  return d
 }
 
 /**
- * Sum `amount_earned` per period bucket, sorted chronologically ascending.
- * Returns `[]` for empty input.
+ * Inclusive start / exclusive end (at day granularity) for the window the given
+ * range covers, relative to `now`.
  */
-export function groupByPeriod(
+export function rangeBounds(
+  range: Range,
+  now: Date = new Date(),
+): { start: Date; end: Date } {
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  if (range === 'today') {
+    const end = new Date(today)
+    end.setDate(end.getDate() + 1)
+    return { start: today, end }
+  }
+  if (range === 'week') {
+    const start = startOfWeek(today)
+    const end = new Date(start)
+    end.setDate(end.getDate() + 7)
+    return { start, end }
+  }
+  if (range === 'month') {
+    const start = new Date(now.getFullYear(), now.getMonth(), 1)
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+    return { start, end }
+  }
+  // year
+  const start = new Date(now.getFullYear(), 0, 1)
+  const end = new Date(now.getFullYear() + 1, 0, 1)
+  return { start, end }
+}
+
+/** Entries whose `provided_on` falls in the range window `[start, end)`. */
+export function filterToRange(
   entries: IncomeEntryWithService[],
-  period: Period,
-): PeriodTotal[] {
-  const buckets = new Map<string, PeriodTotal>()
-  for (const entry of entries) {
-    const { key, label } = periodBucket(parseProvidedOn(entry.provided_on), period)
-    const existing = buckets.get(key)
-    if (existing) {
-      existing.total += entry.amount_earned
-    } else {
-      buckets.set(key, { label, total: entry.amount_earned })
+  range: Range,
+  now: Date = new Date(),
+): IncomeEntryWithService[] {
+  const { start, end } = rangeBounds(range, now)
+  return entries.filter((entry) => {
+    const date = parseProvidedOn(entry.provided_on)
+    return date >= start && date < end
+  })
+}
+
+/**
+ * Sum `amount_earned` (total) and count entries (count) per bucket across the
+ * selected window. Buckets are pre-seeded so empty days/months still render,
+ * keeping the x-axis continuous. Order is chronological.
+ */
+export function groupByRange(
+  entries: IncomeEntryWithService[],
+  range: Range,
+  now: Date = new Date(),
+): RangeBucket[] {
+  const { start } = rangeBounds(range, now)
+  const buckets: RangeBucket[] = []
+  const indexOf = new Map<string, number>()
+
+  const seed = (key: string, label: string) => {
+    indexOf.set(key, buckets.length)
+    buckets.push({ label, total: 0, count: 0 })
+  }
+
+  if (range === 'today') {
+    seed(bucketKey(start, range), 'Today')
+  } else if (range === 'week') {
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(start)
+      d.setDate(d.getDate() + i)
+      seed(bucketKey(d, range), WEEKDAY_NAMES[i])
+    }
+  } else if (range === 'month') {
+    const daysInMonth = new Date(start.getFullYear(), start.getMonth() + 1, 0).getDate()
+    for (let day = 1; day <= daysInMonth; day++) {
+      const d = new Date(start.getFullYear(), start.getMonth(), day)
+      seed(bucketKey(d, range), String(day))
+    }
+  } else {
+    for (let m = 0; m < 12; m++) {
+      const d = new Date(start.getFullYear(), m, 1)
+      seed(bucketKey(d, range), MONTH_NAMES[m])
     }
   }
-  return [...buckets.entries()]
-    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-    .map(([, value]) => value)
+
+  for (const entry of filterToRange(entries, range, now)) {
+    const key = bucketKey(parseProvidedOn(entry.provided_on), range)
+    const index = indexOf.get(key)
+    if (index === undefined) continue
+    const bucket = buckets[index]
+    bucket.total += entry.amount_earned
+    bucket.count += 1
+  }
+
+  return buckets
+}
+
+/** Stable bucket key for a date under the given range's granularity. */
+function bucketKey(date: Date, range: Range): string {
+  if (range === 'year') {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+  }
+  // today / week / month all bucket by day
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(
+    date.getDate(),
+  ).padStart(2, '0')}`
 }
 
 /**
@@ -123,28 +181,4 @@ export function groupByService(entries: IncomeEntryWithService[]): ServiceTotal[
   return [...buckets.entries()]
     .map(([name, total]) => ({ name, total }))
     .sort((a, b) => b.total - a.total)
-}
-
-/**
- * All-time and current-month totals plus the count of entries logged this
- * month. `now` is injectable so the month boundary is unit-testable.
- */
-export function summarize(
-  entries: IncomeEntryWithService[],
-  now: Date = new Date(),
-): StatsSummary {
-  const curYear = now.getFullYear()
-  const curMonth = now.getMonth()
-  let allTime = 0
-  let thisMonth = 0
-  let entriesThisMonth = 0
-  for (const entry of entries) {
-    allTime += entry.amount_earned
-    const date = parseProvidedOn(entry.provided_on)
-    if (date.getFullYear() === curYear && date.getMonth() === curMonth) {
-      thisMonth += entry.amount_earned
-      entriesThisMonth += 1
-    }
-  }
-  return { allTime, thisMonth, entriesThisMonth }
 }
