@@ -2,14 +2,14 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { IncomeEntryWithService } from '@/features/income/api'
+import type { AppointmentWithEntries } from '@/features/income/api'
 
 const state = vi.hoisted(() => ({
   stats: {
     isLoading: false,
     isError: false,
     error: null as unknown,
-    data: [] as IncomeEntryWithService[],
+    data: [] as AppointmentWithEntries[],
   },
   profile: { data: { currency: 'PLN', commission_pct: 15 } },
 }))
@@ -54,22 +54,32 @@ vi.mock('recharts', () => {
 import StatsPage from './StatsPage'
 
 function entry(
-  overrides: Partial<IncomeEntryWithService> = {},
-): IncomeEntryWithService {
+  overrides: Partial<AppointmentWithEntries> & { amount_earned?: number } = {},
+): AppointmentWithEntries {
+  const { amount_earned = 10, ...rest } = overrides
   return {
-    id: 'e1',
+    id: 'a1',
     user_id: 'u1',
-    service_id: 's1',
     provided_on: '2026-06-15',
-    price_snapshot: 100,
-    commission_pct_snapshot: 10,
-    amount_earned: 10,
     customer: null,
     note: null,
+    tip: 0,
     source: 'manual',
     created_at: '2026-06-15T00:00:00Z',
-    service: { name: 'Haircut' },
-    ...overrides,
+    entries: [
+      {
+        id: 'e1',
+        user_id: 'u1',
+        appointment_id: 'a1',
+        service_id: 's1',
+        price_snapshot: 100,
+        commission_pct_snapshot: 10,
+        amount_earned,
+        created_at: '2026-06-15T00:00:00Z',
+        service: { name: 'Haircut' },
+      },
+    ],
+    ...rest,
   }
 }
 

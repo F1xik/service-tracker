@@ -2,34 +2,36 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { computeEarnings } from '@/lib/calc'
 
-const getUser = vi.hoisted(() => vi.fn())
+const rpc = vi.hoisted(() => vi.fn())
 const from = vi.hoisted(() => vi.fn())
 
 vi.mock('@/lib/supabase', () => ({
   supabase: {
-    auth: { getUser },
+    rpc,
     from,
   },
 }))
 
-import { createEntries, deleteEntry, getEntries } from './api'
+import {
+  createAppointment,
+  deleteAppointment,
+  getAppointments,
+  getAllAppointments,
+} from './api'
 
 beforeEach(() => {
   vi.clearAllMocks()
-  getUser.mockResolvedValue({ data: { user: { id: 'u1' } }, error: null })
 })
 
-describe('createEntries', () => {
-  it('inserts an array of rows with computed amount_earned and shared header', async () => {
-    const insert = vi.fn().mockReturnValue({
-      select: vi.fn().mockResolvedValue({ data: [{ id: 'e1' }], error: null }),
-    })
-    from.mockReturnValue({ insert })
+describe('createAppointment', () => {
+  it('calls the create_appointment RPC with client-computed amount_earned', async () => {
+    rpc.mockResolvedValue({ data: { id: 'a1' }, error: null })
 
-    await createEntries({
+    const result = await createAppointment({
       provided_on: '2026-06-02',
       customer: 'Jane',
       note: null,
+      tip: 5,
       commissionPct: 15,
       lines: [
         { service_id: 's1', price: 40 },
@@ -37,49 +39,38 @@ describe('createEntries', () => {
       ],
     })
 
-    expect(from).toHaveBeenCalledWith('income_entries')
-    const rows = insert.mock.calls[0][0]
-    expect(Array.isArray(rows)).toBe(true)
-    expect(rows).toHaveLength(2)
-    expect(rows[0]).toMatchObject({
-      user_id: 'u1',
-      service_id: 's1',
-      provided_on: '2026-06-02',
-      price_snapshot: 40,
-      commission_pct_snapshot: 15,
-      amount_earned: computeEarnings(40, 15),
-      customer: 'Jane',
-      note: null,
+    expect(rpc).toHaveBeenCalledWith('create_appointment', {
+      p_provided_on: '2026-06-02',
+      p_customer: 'Jane',
+      p_note: null,
+      p_tip: 5,
+      p_lines: [
+        {
+          service_id: 's1',
+          price_snapshot: 40,
+          commission_pct_snapshot: 15,
+          amount_earned: computeEarnings(40, 15),
+        },
+        {
+          service_id: 's2',
+          price_snapshot: 60,
+          commission_pct_snapshot: 15,
+          amount_earned: computeEarnings(60, 15),
+        },
+      ],
     })
-    expect(rows[1].amount_earned).toBe(computeEarnings(60, 15))
+    expect(result).toEqual({ id: 'a1' })
   })
 
-  it('throws when no user is signed in', async () => {
-    getUser.mockResolvedValue({ data: { user: null }, error: null })
+  it('propagates an RPC error (all-or-nothing surfaces as a throw)', async () => {
+    rpc.mockResolvedValue({ data: null, error: new Error('trigger rejected') })
+
     await expect(
-      createEntries({
+      createAppointment({
         provided_on: '2026-06-02',
         customer: null,
         note: null,
-        commissionPct: 10,
-        lines: [{ service_id: 's1', price: 10 }],
-      }),
-    ).rejects.toThrow(/signed in/)
-  })
-
-  it('propagates an insert error (all-or-nothing surfaces as a throw)', async () => {
-    const insert = vi.fn().mockReturnValue({
-      select: vi
-        .fn()
-        .mockResolvedValue({ data: null, error: new Error('trigger rejected') }),
-    })
-    from.mockReturnValue({ insert })
-
-    await expect(
-      createEntries({
-        provided_on: '2026-06-02',
-        customer: null,
-        note: null,
+        tip: 0,
         commissionPct: 10,
         lines: [{ service_id: 's1', price: 10 }],
       }),
@@ -87,34 +78,53 @@ describe('createEntries', () => {
   })
 })
 
-describe('getEntries', () => {
-  it('selects entries with the embedded service name, ordered and limited', async () => {
-    const limit = vi.fn().mockResolvedValue({ data: [{ id: 'e1' }], error: null })
+describe('getAppointments', () => {
+  it('selects appointments with embedded line items, ordered and limited', async () => {
+    const limit = vi.fn().mockResolvedValue({ data: [{ id: 'a1' }], error: null })
     const order2 = vi.fn().mockReturnValue({ limit })
     const order1 = vi.fn().mockReturnValue({ order: order2 })
     const select = vi.fn().mockReturnValue({ order: order1 })
     from.mockReturnValue({ select })
 
-    const result = await getEntries(20)
+    const result = await getAppointments(20)
 
-    expect(from).toHaveBeenCalledWith('income_entries')
-    expect(select).toHaveBeenCalledWith('*, service:services(name)')
+    expect(from).toHaveBeenCalledWith('appointments')
+    expect(select).toHaveBeenCalledWith(
+      '*, entries:income_entries(*, service:services(name))',
+    )
     expect(order1).toHaveBeenCalledWith('provided_on', { ascending: false })
     expect(order2).toHaveBeenCalledWith('created_at', { ascending: false })
     expect(limit).toHaveBeenCalledWith(20)
-    expect(result).toEqual([{ id: 'e1' }])
+    expect(result).toEqual([{ id: 'a1' }])
   })
 })
 
-describe('deleteEntry', () => {
-  it('deletes by id', async () => {
+describe('getAllAppointments', () => {
+  it('selects every appointment oldest first with embedded line items', async () => {
+    const order = vi.fn().mockResolvedValue({ data: [{ id: 'a1' }], error: null })
+    const select = vi.fn().mockReturnValue({ order })
+    from.mockReturnValue({ select })
+
+    const result = await getAllAppointments()
+
+    expect(from).toHaveBeenCalledWith('appointments')
+    expect(select).toHaveBeenCalledWith(
+      '*, entries:income_entries(*, service:services(name))',
+    )
+    expect(order).toHaveBeenCalledWith('provided_on', { ascending: true })
+    expect(result).toEqual([{ id: 'a1' }])
+  })
+})
+
+describe('deleteAppointment', () => {
+  it('deletes by id (line items cascade away)', async () => {
     const eq = vi.fn().mockResolvedValue({ error: null })
     const del = vi.fn().mockReturnValue({ eq })
     from.mockReturnValue({ delete: del })
 
-    await deleteEntry('e1')
+    await deleteAppointment('a1')
 
-    expect(from).toHaveBeenCalledWith('income_entries')
-    expect(eq).toHaveBeenCalledWith('id', 'e1')
+    expect(from).toHaveBeenCalledWith('appointments')
+    expect(eq).toHaveBeenCalledWith('id', 'a1')
   })
 })

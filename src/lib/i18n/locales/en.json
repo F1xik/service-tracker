@@ -47,6 +47,8 @@
     "customerPlaceholder": "Optional",
     "note": "Note",
     "notePlaceholder": "Optional",
+    "tip": "Tip",
+    "tipPlaceholder": "0.00",
     "services": "Services",
     "addService": "Add service",
     "service": "Service",
@@ -101,13 +103,15 @@
     "income": "Income",
     "earned": "Earned",
     "customers": "Customers",
-    "incomeByService": "Income by service"
+    "incomeByService": "Income by service",
+    "tips": "Tips"
   },
   "validation": {
     "emailInvalid": "Enter a valid email address",
     "passwordMin": "Password must be at least 8 characters",
     "pickService": "Pick a service",
     "pricePositive": "Price must be greater than 0",
+    "tipNonnegative": "Tip cannot be negative",
     "dateRequired": "Date is required",
     "customerMax": "Customer must be 100 characters or fewer",
     "noteMax": "Note must be 500 characters or fewer",

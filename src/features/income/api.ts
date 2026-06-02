@@ -1,92 +1,97 @@
 import { supabase } from '@/lib/supabase'
-import { computeEarnings, type IncomeEntry } from '@/lib/calc'
+import { computeEarnings, type Appointment, type IncomeEntry } from '@/lib/calc'
 
-/** A single service line within a batch: the service plus its (editable) price. */
+/** A single service line within an appointment: the service plus its (editable) price. */
 export interface EntryLineInput {
   service_id: string
   price: number
 }
 
 /**
- * One batch submission. Date, customer and note are shared across every line;
- * each line becomes its own `income_entries` row.
+ * One appointment submission. Date, customer, note and tip live on the
+ * appointment; each line becomes its own `income_entries` row beneath it.
  */
-export interface CreateEntriesInput {
+export interface CreateAppointmentInput {
   provided_on: string
   customer: string | null
   note: string | null
+  tip: number
   commissionPct: number
   lines: EntryLineInput[]
 }
 
-/** Recent-list shape — `income_entries` joined to the service name. */
+/** A line item joined to its service name, as shown in lists. */
 export interface IncomeEntryWithService extends IncomeEntry {
   service: { name: string } | null
 }
 
-/**
- * Insert a batch of income entries in a single statement.
- *
- * A single array insert is one atomic statement in PostgREST, so this is
- * all-or-nothing: if any row violates a constraint or the backstop trigger,
- * the whole insert is rejected and nothing is saved.
- *
- * `amount_earned` is computed explicitly with `computeEarnings` per row — the
- * DB trigger only validates this value, it never computes it.
- */
-export async function createEntries(input: CreateEntriesInput): Promise<IncomeEntry[]> {
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser()
-  if (userError) throw userError
-  if (!user) throw new Error('You must be signed in to log income.')
+/** An appointment with its embedded service-line items. */
+export interface AppointmentWithEntries extends Appointment {
+  entries: IncomeEntryWithService[]
+}
 
-  const rows = input.lines.map((line) => ({
-    user_id: user.id,
+/**
+ * Create an appointment and its line items in a single transaction via the
+ * `create_appointment` RPC. The function is atomic and runs as the caller, so
+ * RLS and the backstop trigger still apply: if any line violates a constraint
+ * the whole appointment is rejected and nothing is saved.
+ *
+ * `amount_earned` is computed explicitly with `computeEarnings` per line — the
+ * RPC only stores this value, it never computes it.
+ */
+export async function createAppointment(
+  input: CreateAppointmentInput,
+): Promise<Appointment> {
+  const lines = input.lines.map((line) => ({
     service_id: line.service_id,
-    provided_on: input.provided_on,
     price_snapshot: line.price,
     commission_pct_snapshot: input.commissionPct,
     amount_earned: computeEarnings(line.price, input.commissionPct),
-    customer: input.customer,
-    note: input.note,
   }))
 
-  const { data, error } = await supabase.from('income_entries').insert(rows).select()
+  const { data, error } = await supabase.rpc('create_appointment', {
+    p_provided_on: input.provided_on,
+    p_customer: input.customer,
+    p_note: input.note,
+    p_tip: input.tip,
+    p_lines: lines,
+  })
   if (error) throw error
-  return data ?? []
+  return data as Appointment
 }
 
-/** Fetch the most recent entries with their service name, newest first. */
-export async function getEntries(limit = 20): Promise<IncomeEntryWithService[]> {
+const APPOINTMENT_SELECT = '*, entries:income_entries(*, service:services(name))'
+
+/** Fetch the most recent appointments with their line items, newest first. */
+export async function getAppointments(limit = 20): Promise<AppointmentWithEntries[]> {
   const { data, error } = await supabase
-    .from('income_entries')
-    .select('*, service:services(name)')
+    .from('appointments')
+    .select(APPOINTMENT_SELECT)
     .order('provided_on', { ascending: false })
     .order('created_at', { ascending: false })
     .limit(limit)
   if (error) throw error
-  return data ?? []
+  return (data as AppointmentWithEntries[] | null) ?? []
 }
 
 /**
- * Fetch every entry for the user with its service name, oldest first.
+ * Fetch every appointment for the user with its line items, oldest first.
  *
  * Used by the stats dashboard, which needs the full history (not the capped
  * recent list). RLS scopes rows to the logged-in user, so no explicit
  * `user_id` filter is required.
  */
-export async function getAllEntries(): Promise<IncomeEntryWithService[]> {
+export async function getAllAppointments(): Promise<AppointmentWithEntries[]> {
   const { data, error } = await supabase
-    .from('income_entries')
-    .select('*, service:services(name)')
+    .from('appointments')
+    .select(APPOINTMENT_SELECT)
     .order('provided_on', { ascending: true })
   if (error) throw error
-  return data ?? []
+  return (data as AppointmentWithEntries[] | null) ?? []
 }
 
-export async function deleteEntry(id: string): Promise<void> {
-  const { error } = await supabase.from('income_entries').delete().eq('id', id)
+/** Delete an appointment; its line items cascade away with it. */
+export async function deleteAppointment(id: string): Promise<void> {
+  const { error } = await supabase.from('appointments').delete().eq('id', id)
   if (error) throw error
 }
