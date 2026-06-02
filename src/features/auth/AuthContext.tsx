@@ -2,11 +2,20 @@ import { createContext, useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 
+interface SignUpResult {
+  /** True when Supabase requires email confirmation before a session exists. */
+  needsEmailConfirmation: boolean
+}
+
 interface AuthContextValue {
   session: Session | null
   initializing: boolean
   signIn: (email: string, password: string) => Promise<void>
-  signUp: (email: string, password: string, displayName?: string) => Promise<void>
+  signUp: (
+    email: string,
+    password: string,
+    displayName?: string,
+  ) => Promise<SignUpResult>
   signOut: () => Promise<void>
 }
 
@@ -17,16 +26,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [initializing, setInitializing] = useState(true)
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session)
-      setInitializing(false)
-    })
+    let active = true
+
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        if (active) setSession(data.session)
+      })
+      .catch(() => {
+        // Session restore failed (network/storage). Treat as signed-out rather
+        // than leaving the app stuck on a blank initializing screen forever.
+        if (active) setSession(null)
+      })
+      .finally(() => {
+        if (active) setInitializing(false)
+      })
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession)
     })
 
-    return () => listener.subscription.unsubscribe()
+    return () => {
+      active = false
+      listener.subscription.unsubscribe()
+    }
   }, [])
 
   async function signIn(email: string, password: string) {
@@ -34,13 +57,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (error) throw error
   }
 
-  async function signUp(email: string, password: string, displayName?: string) {
-    const { error } = await supabase.auth.signUp({
+  async function signUp(
+    email: string,
+    password: string,
+    displayName?: string,
+  ): Promise<SignUpResult> {
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: displayName ? { display_name: displayName } : undefined },
+      options: {
+        data: displayName ? { display_name: displayName } : undefined,
+        emailRedirectTo: `${window.location.origin}/sign-in`,
+      },
     })
     if (error) throw error
+    // When confirmation is required Supabase returns a user but no session.
+    return { needsEmailConfirmation: !data.session }
   }
 
   async function signOut() {
