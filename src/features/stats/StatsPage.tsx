@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Bar,
   BarChart,
@@ -24,12 +25,7 @@ import { useStats } from './useStats'
 
 const DEFAULT_CURRENCY = 'PLN'
 
-const RANGES: { value: Range; label: string }[] = [
-  { value: 'today', label: 'Today' },
-  { value: 'week', label: 'Week' },
-  { value: 'month', label: 'Month' },
-  { value: 'year', label: 'Year' },
-]
+const RANGE_VALUES: Range[] = ['today', 'week', 'month', 'year']
 
 const INCOME_COLOR = 'var(--color-primary)'
 const INCOME_ACTIVE_COLOR = 'var(--color-primary-hover)'
@@ -49,6 +45,7 @@ const PIE_COLORS = [
 ]
 
 export default function StatsPage() {
+  const { t } = useTranslation()
   const statsQuery = useStats()
   const profileQuery = useProfile()
   const [range, setRange] = useState<Range>('month')
@@ -68,14 +65,14 @@ export default function StatsPage() {
     <div className="mx-auto w-full max-w-2xl px-4 py-6">
       <header className="mb-6">
         <h1 className="text-2xl font-bold tracking-tight text-[var(--color-fg)]">
-          Stats
+          {t('stats.title')}
         </h1>
       </header>
 
       {statsQuery.isLoading ? (
         <div
           role="status"
-          aria-label="Loading stats"
+          aria-label={t('stats.loadingStats')}
           className="flex justify-center py-10 text-[var(--color-fg-muted)]"
         >
           <Spinner />
@@ -84,22 +81,22 @@ export default function StatsPage() {
         <Alert variant="error">
           {statsQuery.error instanceof Error
             ? statsQuery.error.message
-            : 'Could not load stats.'}
+            : t('stats.loadStatsError')}
         </Alert>
       ) : entries.length === 0 ? (
         <Card>
           <p className="text-center text-sm text-[var(--color-fg-muted)]">
-            No income logged yet. Add an entry to see your stats here.
+            {t('stats.noIncome')}
           </p>
         </Card>
       ) : (
         <div className="space-y-8">
           <div
             role="group"
-            aria-label="Range"
+            aria-label={t('stats.range')}
             className="flex gap-1 rounded-[var(--radius-md)] bg-[var(--color-surface-muted)] p-1"
           >
-            {RANGES.map(({ value, label }) => (
+            {RANGE_VALUES.map((value) => (
               <Button
                 key={value}
                 type="button"
@@ -109,7 +106,7 @@ export default function StatsPage() {
                 aria-pressed={range === value}
                 onClick={() => setRange(value)}
               >
-                {label}
+                {t(`stats.${value}`)}
               </Button>
             ))}
           </div>
@@ -117,14 +114,14 @@ export default function StatsPage() {
           {filtered.length === 0 ? (
             <Card>
               <p className="text-center text-sm text-[var(--color-fg-muted)]">
-                No income in this period. Pick another range above.
+                {t('stats.noIncomeInPeriod')}
               </p>
             </Card>
           ) : (
             <>
               <section>
                 <h2 className="mb-3 text-lg font-semibold text-[var(--color-fg)]">
-                  Income
+                  {t('stats.income')}
                 </h2>
                 <Card>
                   <div className="h-64 w-full">
@@ -138,7 +135,7 @@ export default function StatsPage() {
                         />
                         <Bar
                           dataKey="total"
-                          name="Earned"
+                          name={t('stats.earned')}
                           fill={INCOME_COLOR}
                           activeBar={{ fill: INCOME_ACTIVE_COLOR }}
                           radius={[4, 4, 0, 0]}
@@ -151,7 +148,7 @@ export default function StatsPage() {
 
               <section>
                 <h2 className="mb-3 text-lg font-semibold text-[var(--color-fg)]">
-                  Customers
+                  {t('stats.customers')}
                 </h2>
                 <Card>
                   <div className="h-64 w-full">
@@ -170,7 +167,7 @@ export default function StatsPage() {
                         />
                         <Bar
                           dataKey="count"
-                          name="Customers"
+                          name={t('stats.customers')}
                           fill={COUNT_COLOR}
                           activeBar={{ fill: COUNT_ACTIVE_COLOR }}
                           radius={[4, 4, 0, 0]}
@@ -183,7 +180,7 @@ export default function StatsPage() {
 
               <section>
                 <h2 className="mb-3 text-lg font-semibold text-[var(--color-fg)]">
-                  Income by service
+                  {t('stats.incomeByService')}
                 </h2>
                 <Card>
                   <div className="h-72 w-full">

@@ -1,7 +1,10 @@
+import { useMemo } from 'react'
 import { useForm, useFieldArray, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Plus, Trash2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import { computeEarnings, type Service } from '@/lib/calc'
 import { formatPrice } from '@/lib/format'
 
@@ -10,19 +13,22 @@ import { Input } from '@/components/ui/Input'
 import { Field } from '@/components/ui/Field'
 import { Alert } from '@/components/ui/Alert'
 
-const lineSchema = z.object({
-  service_id: z.string().min(1, 'Pick a service'),
-  price: z.coerce.number().positive('Price must be greater than 0'),
-})
+const makeSchema = (t: TFunction) =>
+  z.object({
+    provided_on: z.string().min(1, t('validation.dateRequired')),
+    customer: z.string().trim().max(100, t('validation.customerMax')),
+    note: z.string().trim().max(500, t('validation.noteMax')),
+    lines: z
+      .array(
+        z.object({
+          service_id: z.string().min(1, t('validation.pickService')),
+          price: z.coerce.number().positive(t('validation.pricePositive')),
+        }),
+      )
+      .min(1, t('validation.addAtLeastOneService')),
+  })
 
-const schema = z.object({
-  provided_on: z.string().min(1, 'Date is required'),
-  customer: z.string().trim().max(100, 'Customer must be 100 characters or fewer'),
-  note: z.string().trim().max(500, 'Note must be 500 characters or fewer'),
-  lines: z.array(lineSchema).min(1, 'Add at least one service'),
-})
-
-export type EntryFormValues = z.infer<typeof schema>
+export type EntryFormValues = z.infer<ReturnType<typeof makeSchema>>
 
 /** Local YYYY-MM-DD for "today" (avoids the UTC off-by-one of toISOString). */
 function localToday(): string {
@@ -57,6 +63,8 @@ export function EntryForm({
   submitting = false,
   submitError,
 }: EntryFormProps) {
+  const { t } = useTranslation()
+  const schema = useMemo(() => makeSchema(t), [t])
   const {
     register,
     control,
@@ -89,7 +97,7 @@ export function EntryForm({
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field
           id="provided_on"
-          label="Date"
+          label={t('income.date')}
           required
           error={errors.provided_on?.message}
         >
@@ -102,10 +110,14 @@ export function EntryForm({
           />
         </Field>
 
-        <Field id="customer" label="Customer" error={errors.customer?.message}>
+        <Field
+          id="customer"
+          label={t('income.customer')}
+          error={errors.customer?.message}
+        >
           <Input
             id="customer"
-            placeholder="Optional"
+            placeholder={t('income.customerPlaceholder')}
             error={!!errors.customer}
             aria-describedby={errors.customer ? 'customer-error' : undefined}
             {...register('customer')}
@@ -113,10 +125,10 @@ export function EntryForm({
         </Field>
       </div>
 
-      <Field id="note" label="Note" error={errors.note?.message}>
+      <Field id="note" label={t('income.note')} error={errors.note?.message}>
         <Input
           id="note"
-          placeholder="Optional"
+          placeholder={t('income.notePlaceholder')}
           error={!!errors.note}
           aria-describedby={errors.note ? 'note-error' : undefined}
           {...register('note')}
@@ -125,7 +137,9 @@ export function EntryForm({
 
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-medium text-[var(--color-fg)]">Services</h2>
+          <h2 className="text-sm font-medium text-[var(--color-fg)]">
+            {t('income.services')}
+          </h2>
           <Button
             type="button"
             variant="secondary"
@@ -135,7 +149,7 @@ export function EntryForm({
             }
           >
             <Plus size={16} aria-hidden="true" />
-            Add service
+            {t('income.addService')}
           </Button>
         </div>
 
@@ -161,7 +175,7 @@ export function EntryForm({
                 <div className="grid min-w-0 grow grid-cols-1 gap-3 sm:grid-cols-2">
                   <Field
                     id={`service-${index}`}
-                    label="Service"
+                    label={t('income.service')}
                     required
                     error={lineErrors?.service_id?.message}
                   >
@@ -181,7 +195,7 @@ export function EntryForm({
                         }
                       }}
                     >
-                      <option value="">Select a service…</option>
+                      <option value="">{t('income.selectService')}</option>
                       {activeServices.map((s) => (
                         <option key={s.id} value={s.id}>
                           {s.name}
@@ -192,7 +206,7 @@ export function EntryForm({
 
                   <Field
                     id={`price-${index}`}
-                    label="Price"
+                    label={t('income.price')}
                     required
                     error={lineErrors?.price?.message}
                   >
@@ -206,7 +220,7 @@ export function EntryForm({
                         step="0.01"
                         min="0"
                         inputMode="decimal"
-                        placeholder="0.00"
+                        placeholder={t('income.pricePlaceholder')}
                         error={!!lineErrors?.price}
                         className="pl-14"
                         {...register(`lines.${index}.price`)}
@@ -220,7 +234,7 @@ export function EntryForm({
                     type="button"
                     variant="ghost"
                     size="icon"
-                    aria-label={`Remove service ${index + 1}`}
+                    aria-label={t('income.removeService', { number: index + 1 })}
                     onClick={() => remove(index)}
                   >
                     <Trash2 size={18} aria-hidden="true" />
@@ -229,11 +243,11 @@ export function EntryForm({
               </div>
 
               <p className="mt-2 text-xs text-[var(--color-fg-muted)]">
-                You earn{' '}
+                {t('income.youEarn')}{' '}
                 <span className="font-medium tabular-nums text-[var(--color-fg)]">
                   {formatPrice(earned, currency)}
                 </span>{' '}
-                ({commissionPct}% commission)
+                {t('income.commissionNote', { pct: commissionPct })}
               </p>
             </div>
           )
@@ -241,7 +255,9 @@ export function EntryForm({
       </div>
 
       <div className="flex items-center justify-between border-t border-[var(--color-border)] pt-4">
-        <span className="text-sm text-[var(--color-fg-muted)]">Total earned</span>
+        <span className="text-sm text-[var(--color-fg-muted)]">
+          {t('income.totalEarned')}
+        </span>
         <span className="text-lg font-semibold tabular-nums text-[var(--color-fg)]">
           {formatPrice(total, currency)}
         </span>
@@ -250,7 +266,7 @@ export function EntryForm({
       {submitError && <Alert variant="error">{submitError}</Alert>}
 
       <Button type="submit" loading={submitting} fullWidth>
-        Log income
+        {t('income.logIncome')}
       </Button>
     </form>
   )

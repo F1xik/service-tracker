@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Link, useNavigate } from 'react-router-dom'
 import { Wallet } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 
 import { useAuth } from './useAuth'
 import { Button } from '@/components/ui/Button'
@@ -11,20 +13,24 @@ import { Input } from '@/components/ui/Input'
 import { Field } from '@/components/ui/Field'
 import { Card } from '@/components/ui/Card'
 import { Alert } from '@/components/ui/Alert'
+import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher'
 
-const schema = z.object({
-  email: z.string().email('Enter a valid email address'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
-  displayName: z.string().max(100).optional(),
-})
+const makeSchema = (t: TFunction) =>
+  z.object({
+    email: z.string().email(t('validation.emailInvalid')),
+    password: z.string().min(8, t('validation.passwordMin')),
+    displayName: z.string().max(100).optional(),
+  })
 
-type FormValues = z.infer<typeof schema>
+type FormValues = z.infer<ReturnType<typeof makeSchema>>
 
 export default function SignUpPage() {
+  const { t } = useTranslation()
   const { signUp } = useAuth()
   const navigate = useNavigate()
   const [authError, setAuthError] = useState<string | null>(null)
 
+  const schema = useMemo(() => makeSchema(t), [t])
   const {
     register,
     handleSubmit,
@@ -43,14 +49,14 @@ export default function SignUpPage() {
         // No session yet — prompt the user to confirm via email instead of
         // silently bouncing them to a sign-in page that won't work yet.
         navigate('/sign-in', {
-          state: { notice: 'Check your email to confirm your account, then sign in.' },
+          state: { notice: t('auth.confirmEmailNotice') },
         })
       } else {
         // Confirmation disabled: signUp already created a session, so go home.
         navigate('/')
       }
     } catch (err) {
-      setAuthError(err instanceof Error ? err.message : 'Could not create account.')
+      setAuthError(err instanceof Error ? err.message : t('auth.couldNotCreateAccount'))
     }
   }
 
@@ -65,9 +71,9 @@ export default function SignUpPage() {
           />
         </div>
         <h1 className="text-3xl font-bold tracking-tight text-[var(--color-fg)]">
-          Income
+          {t('common.appName')}
         </h1>
-        <p className="text-sm text-[var(--color-fg-muted)]">Track what you earn.</p>
+        <p className="text-sm text-[var(--color-fg-muted)]">{t('common.tagline')}</p>
       </div>
 
       <Card className="w-full max-w-sm">
@@ -76,7 +82,12 @@ export default function SignUpPage() {
           noValidate
           className="flex flex-col gap-4"
         >
-          <Field id="email" label="Email" required error={errors.email?.message}>
+          <Field
+            id="email"
+            label={t('auth.email')}
+            required
+            error={errors.email?.message}
+          >
             <Input
               id="email"
               type="email"
@@ -90,7 +101,7 @@ export default function SignUpPage() {
 
           <Field
             id="password"
-            label="Password"
+            label={t('auth.password')}
             required
             error={errors.password?.message}
           >
@@ -107,15 +118,15 @@ export default function SignUpPage() {
 
           <Field
             id="displayName"
-            label="Display name"
+            label={t('auth.displayName')}
             error={errors.displayName?.message}
-            helper="Optional — shown on your profile"
+            helper={t('auth.displayNameHelper')}
           >
             <Input
               id="displayName"
               type="text"
               autoComplete="name"
-              placeholder="Your name"
+              placeholder={t('auth.namePlaceholder')}
               {...register('displayName')}
             />
           </Field>
@@ -123,20 +134,22 @@ export default function SignUpPage() {
           {authError && <Alert variant="error">{authError}</Alert>}
 
           <Button type="submit" fullWidth loading={isSubmitting}>
-            Create account
+            {t('auth.createAccount')}
           </Button>
         </form>
       </Card>
 
       <p className="text-sm text-[var(--color-fg-muted)]">
-        Already have an account?{' '}
+        {t('auth.alreadyHaveAccount')}{' '}
         <Link
           to="/sign-in"
           className="font-medium text-[var(--color-primary)] underline-offset-4 hover:underline"
         >
-          Sign in
+          {t('auth.signIn')}
         </Link>
       </p>
+
+      <LanguageSwitcher className="w-40" />
     </div>
   )
 }
