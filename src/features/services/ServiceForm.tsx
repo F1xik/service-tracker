@@ -1,22 +1,26 @@
+import { useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Field } from '@/components/ui/Field'
 import { Alert } from '@/components/ui/Alert'
 
-const schema = z.object({
-  name: z
-    .string()
-    .trim()
-    .min(1, 'Name is required')
-    .max(100, 'Name must be 100 characters or fewer'),
-  price: z.coerce.number().positive('Price must be greater than 0'),
-})
+const makeSchema = (t: TFunction) =>
+  z.object({
+    name: z
+      .string()
+      .trim()
+      .min(1, t('validation.nameRequired'))
+      .max(100, t('validation.nameMax')),
+    price: z.coerce.number().positive(t('validation.pricePositive')),
+  })
 
-export type ServiceFormValues = z.infer<typeof schema>
+export type ServiceFormValues = z.infer<ReturnType<typeof makeSchema>>
 
 interface ServiceFormProps {
   defaultValues?: Partial<ServiceFormValues>
@@ -34,9 +38,11 @@ export function ServiceForm({
   onCancel,
   submitting = false,
   submitError,
-  submitLabel = 'Save',
+  submitLabel,
   currency,
 }: ServiceFormProps) {
+  const { t } = useTranslation()
+  const schema = useMemo(() => makeSchema(t), [t])
   const {
     register,
     handleSubmit,
@@ -51,17 +57,27 @@ export function ServiceForm({
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
-      <Field id="service-name" label="Name" required error={errors.name?.message}>
+      <Field
+        id="service-name"
+        label={t('services.name')}
+        required
+        error={errors.name?.message}
+      >
         <Input
           id="service-name"
-          placeholder="e.g. Haircut"
+          placeholder={t('services.namePlaceholder')}
           error={!!errors.name}
           aria-describedby={errors.name ? 'service-name-error' : undefined}
           {...register('name')}
         />
       </Field>
 
-      <Field id="service-price" label="Price" required error={errors.price?.message}>
+      <Field
+        id="service-price"
+        label={t('services.price')}
+        required
+        error={errors.price?.message}
+      >
         <div className="relative">
           {currency && (
             <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[var(--color-fg-subtle)]">
@@ -74,7 +90,7 @@ export function ServiceForm({
             step="0.01"
             min="0"
             inputMode="decimal"
-            placeholder="0.00"
+            placeholder={t('services.pricePlaceholder')}
             error={!!errors.price}
             aria-describedby={errors.price ? 'service-price-error' : undefined}
             className={currency ? 'pl-14' : undefined}
@@ -87,10 +103,10 @@ export function ServiceForm({
 
       <div className="flex justify-end gap-2">
         <Button type="button" variant="secondary" onClick={onCancel}>
-          Cancel
+          {t('services.cancel')}
         </Button>
         <Button type="submit" loading={submitting}>
-          {submitLabel}
+          {submitLabel ?? t('services.save')}
         </Button>
       </div>
     </form>
