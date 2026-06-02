@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Service } from '@/lib/calc'
 
-import type { IncomeEntryWithService } from './api'
+import type { AppointmentWithEntries } from './api'
 
 const createMutateAsync = vi.hoisted(() => vi.fn())
 const deleteMutate = vi.hoisted(() => vi.fn())
@@ -20,11 +20,11 @@ const state = vi.hoisted(() => ({
     isError: false,
     data: [] as Service[],
   },
-  entries: {
+  appointments: {
     isLoading: false,
     isError: false,
     error: null as unknown,
-    data: [] as IncomeEntryWithService[],
+    data: [] as AppointmentWithEntries[],
   },
 }))
 
@@ -34,9 +34,9 @@ vi.mock('@/features/services/useServices', () => ({
 }))
 
 vi.mock('./useIncome', () => ({
-  useEntries: () => state.entries,
-  useCreateEntries: () => ({ mutateAsync: createMutateAsync, isPending: false }),
-  useDeleteEntry: () => ({ mutate: deleteMutate }),
+  useAppointments: () => state.appointments,
+  useCreateAppointment: () => ({ mutateAsync: createMutateAsync, isPending: false }),
+  useDeleteAppointment: () => ({ mutate: deleteMutate }),
 }))
 
 import LogIncomePage from './LogIncomePage'
@@ -53,22 +53,31 @@ function service(overrides: Partial<Service> = {}): Service {
   }
 }
 
-function entry(
-  overrides: Partial<IncomeEntryWithService> = {},
-): IncomeEntryWithService {
+function appointment(
+  overrides: Partial<AppointmentWithEntries> = {},
+): AppointmentWithEntries {
   return {
-    id: 'e1',
+    id: 'a1',
     user_id: 'u1',
-    service_id: 's1',
     provided_on: '2026-06-02',
-    price_snapshot: 40,
-    commission_pct_snapshot: 15,
-    amount_earned: 6,
     customer: null,
     note: null,
+    tip: 0,
     source: 'manual',
     created_at: '2026-06-02T00:00:00Z',
-    service: { name: 'Haircut' },
+    entries: [
+      {
+        id: 'e1',
+        user_id: 'u1',
+        appointment_id: 'a1',
+        service_id: 's1',
+        price_snapshot: 40,
+        commission_pct_snapshot: 15,
+        amount_earned: 6,
+        created_at: '2026-06-02T00:00:00Z',
+        service: { name: 'Haircut' },
+      },
+    ],
     ...overrides,
   }
 }
@@ -90,7 +99,7 @@ beforeEach(() => {
     data: { currency: 'USD', commission_pct: 15 },
   }
   state.services = { isLoading: false, isError: false, data: [service()] }
-  state.entries = { isLoading: false, isError: false, error: null, data: [] }
+  state.appointments = { isLoading: false, isError: false, error: null, data: [] }
 })
 
 describe('LogIncomePage', () => {
@@ -115,29 +124,60 @@ describe('LogIncomePage', () => {
     expect(screen.queryByRole('button', { name: 'Log income' })).not.toBeInTheDocument()
   })
 
-  it('renders recent entries with service name and earned amount', () => {
-    state.entries.data = [entry({ amount_earned: 6, service: { name: 'Massage' } })]
+  it('renders a recent appointment with its service lines', () => {
+    state.appointments.data = [
+      appointment({
+        entries: [
+          {
+            id: 'e1',
+            user_id: 'u1',
+            appointment_id: 'a1',
+            service_id: 's1',
+            price_snapshot: 50,
+            commission_pct_snapshot: 15,
+            amount_earned: 6,
+            created_at: '2026-06-02T00:00:00Z',
+            service: { name: 'Massage' },
+          },
+        ],
+      }),
+    ]
     renderPage()
-    const list = screen.getByRole('list')
+    // Outer list is the recent-appointments list (each row nests its own list).
+    const list = screen.getAllByRole('list')[0]
     expect(within(list).getByText('Massage')).toBeInTheDocument()
-    expect(within(list).getByText('$6.00')).toBeInTheDocument()
+    // With no tip, the line amount and the take-home total both read $6.00.
+    expect(within(list).getAllByText('$6.00')).toHaveLength(2)
   })
 
-  it('deletes an entry after confirmation', async () => {
+  it('shows the tip line and a take-home that includes it', () => {
+    state.appointments.data = [appointment({ tip: 4 })]
+    renderPage()
+    const list = screen.getAllByRole('list')[0]
+    // The tip is itemized…
+    expect(within(list).getByText('Tip')).toBeInTheDocument()
+    expect(within(list).getByText('$4.00')).toBeInTheDocument()
+    // …and folded into take-home: 6 earned + 4 tip = 10.
+    expect(within(list).getByText('$10.00')).toBeInTheDocument()
+  })
+
+  it('deletes an appointment after confirmation', async () => {
     vi.spyOn(window, 'confirm').mockReturnValue(true)
-    state.entries.data = [entry()]
+    state.appointments.data = [appointment()]
     const user = userEvent.setup()
     renderPage()
 
     await user.click(screen.getByRole('button', { name: 'Delete entry' }))
-    expect(deleteMutate).toHaveBeenCalledWith('e1')
+    expect(deleteMutate).toHaveBeenCalledWith('a1')
   })
 
-  it('submits the batch with a trimmed, assembled payload', async () => {
+  it('submits an appointment with a trimmed, assembled payload including tip', async () => {
     const user = userEvent.setup()
     renderPage()
 
     await user.selectOptions(screen.getByLabelText(/Service/), 's1')
+    await user.clear(screen.getByLabelText(/Tip/))
+    await user.type(screen.getByLabelText(/Tip/), '3')
     await user.click(screen.getByRole('button', { name: 'Log income' }))
 
     await waitFor(() => expect(createMutateAsync).toHaveBeenCalledTimes(1))
@@ -146,6 +186,7 @@ describe('LogIncomePage', () => {
         commissionPct: 15,
         customer: null,
         note: null,
+        tip: 3,
         lines: [{ service_id: 's1', price: 40 }],
       }),
     )
@@ -162,8 +203,8 @@ describe('LogIncomePage', () => {
     expect(await screen.findByText('Save failed')).toBeInTheDocument()
   })
 
-  it('shows an error alert when entries fail to load', () => {
-    state.entries = {
+  it('shows an error alert when appointments fail to load', () => {
+    state.appointments = {
       isLoading: false,
       isError: true,
       error: new Error('Network down'),

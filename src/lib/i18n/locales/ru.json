@@ -47,6 +47,8 @@
     "customerPlaceholder": "Необязательно",
     "note": "Заметка",
     "notePlaceholder": "Необязательно",
+    "tip": "Чаевые",
+    "tipPlaceholder": "0.00",
     "services": "Услуги",
     "addService": "Добавить услугу",
     "service": "Услуга",
@@ -101,13 +103,15 @@
     "income": "Доход",
     "earned": "Заработано",
     "customers": "Клиенты",
-    "incomeByService": "Доход по услугам"
+    "incomeByService": "Доход по услугам",
+    "tips": "Чаевые"
   },
   "validation": {
     "emailInvalid": "Введите корректный адрес эл. почты",
     "passwordMin": "Пароль должен содержать не менее 8 символов",
     "pickService": "Выберите услугу",
     "pricePositive": "Цена должна быть больше 0",
+    "tipNonnegative": "Чаевые не могут быть отрицательными",
     "dateRequired": "Укажите дату",
     "customerMax": "Имя клиента не более 100 символов",
     "noteMax": "Заметка не более 500 символов",

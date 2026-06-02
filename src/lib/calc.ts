@@ -14,17 +14,31 @@ export interface Service {
   created_at: string
 }
 
+/**
+ * A customer visit: the parent of one or more `income_entries` line items.
+ * Appointment-level data (date, customer, note, tip) lives here, not on the
+ * individual service lines.
+ */
+export interface Appointment {
+  id: string
+  user_id: string
+  provided_on: string
+  customer: string | null
+  note: string | null
+  /** Paid on top of the service price; NOT subject to commission. */
+  tip: number
+  source: 'manual' | 'import'
+  created_at: string
+}
+
 export interface IncomeEntry {
   id: string
   user_id: string
+  appointment_id: string
   service_id: string | null
-  provided_on: string
   price_snapshot: number
   commission_pct_snapshot: number
   amount_earned: number
-  customer: string | null
-  note: string | null
-  source: 'manual' | 'import'
   created_at: string
 }
 
@@ -44,4 +58,15 @@ export function computeEarnings(price: number, commissionPct: number): number {
   const scaled = price * (commissionPct / 100) * 100
   const corrected = scaled + Math.sign(scaled) * Number.EPSILON * Math.abs(scaled) * 4
   return Math.round(corrected) / 100
+}
+
+/**
+ * Take-home for an appointment: commission-based earnings plus the tip.
+ *
+ * The tip is kept in full by the freelancer (no commission applies), so it is
+ * added on top of `amount_earned` rather than folded into `computeEarnings`.
+ * Rounds to two decimals to keep currency math exact when summing.
+ */
+export function computeTakeHome(earnings: number, tip: number): number {
+  return Math.round((earnings + tip) * 100) / 100
 }

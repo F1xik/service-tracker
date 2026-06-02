@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { computeTakeHome } from '@/lib/calc'
 import { formatPrice } from '@/lib/format'
 
 import { Button } from '@/components/ui/Button'
@@ -11,7 +12,11 @@ import { Spinner } from '@/components/ui/Spinner'
 
 import { useProfile, useServices } from '@/features/services/useServices'
 import { EntryForm, type EntryFormValues } from './EntryForm'
-import { useCreateEntries, useDeleteEntry, useEntries } from './useIncome'
+import {
+  useAppointments,
+  useCreateAppointment,
+  useDeleteAppointment,
+} from './useIncome'
 
 const DEFAULT_CURRENCY = 'PLN'
 
@@ -31,9 +36,9 @@ export default function LogIncomePage() {
   const { t } = useTranslation()
   const profileQuery = useProfile()
   const servicesQuery = useServices()
-  const entriesQuery = useEntries()
-  const createEntries = useCreateEntries()
-  const deleteEntry = useDeleteEntry()
+  const appointmentsQuery = useAppointments()
+  const createAppointment = useCreateAppointment()
+  const deleteAppointment = useDeleteAppointment()
 
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [formKey, setFormKey] = useState(0)
@@ -45,10 +50,11 @@ export default function LogIncomePage() {
   async function handleSubmit(values: EntryFormValues) {
     setSubmitError(null)
     try {
-      await createEntries.mutateAsync({
+      await createAppointment.mutateAsync({
         provided_on: values.provided_on,
         customer: values.customer.trim() || null,
         note: values.note.trim() || null,
+        tip: Number(values.tip) || 0,
         commissionPct,
         lines: values.lines.map((line) => ({
           service_id: line.service_id,
@@ -63,7 +69,7 @@ export default function LogIncomePage() {
 
   function handleDelete(id: string) {
     if (!window.confirm(t('income.deleteConfirm'))) return
-    deleteEntry.mutate(id)
+    deleteAppointment.mutate(id)
   }
 
   const setupLoading = profileQuery.isLoading || servicesQuery.isLoading
@@ -104,7 +110,7 @@ export default function LogIncomePage() {
               commissionPct={commissionPct}
               currency={currency}
               onSubmit={handleSubmit}
-              submitting={createEntries.isPending}
+              submitting={createAppointment.isPending}
               submitError={submitError}
             />
           </Card>
@@ -116,7 +122,7 @@ export default function LogIncomePage() {
           {t('income.recent')}
         </h2>
 
-        {entriesQuery.isLoading ? (
+        {appointmentsQuery.isLoading ? (
           <div
             role="status"
             aria-label={t('income.loadingEntries')}
@@ -124,40 +130,69 @@ export default function LogIncomePage() {
           >
             <Spinner />
           </div>
-        ) : entriesQuery.isError ? (
+        ) : appointmentsQuery.isError ? (
           <Alert variant="error">
-            {entriesQuery.error instanceof Error
-              ? entriesQuery.error.message
+            {appointmentsQuery.error instanceof Error
+              ? appointmentsQuery.error.message
               : t('income.loadEntriesError')}
           </Alert>
-        ) : entriesQuery.data && entriesQuery.data.length > 0 ? (
+        ) : appointmentsQuery.data && appointmentsQuery.data.length > 0 ? (
           <Card className="p-0">
             <ul className="divide-y divide-[var(--color-border)]">
-              {entriesQuery.data.map((entry) => (
-                <li key={entry.id} className="flex items-center gap-3 px-4 py-3">
-                  <div className="min-w-0 grow">
-                    <div className="truncate font-medium text-[var(--color-fg)]">
-                      {entry.service?.name ?? t('income.serviceFallback')}
+              {appointmentsQuery.data.map((appointment) => {
+                const earned = appointment.entries.reduce(
+                  (sum, e) => sum + e.amount_earned,
+                  0,
+                )
+                const takeHome = computeTakeHome(earned, appointment.tip)
+                return (
+                  <li key={appointment.id} className="flex items-start gap-3 px-4 py-3">
+                    <div className="min-w-0 grow">
+                      <div className="text-sm text-[var(--color-fg-muted)]">
+                        {formatDate(appointment.provided_on)}
+                        {appointment.customer ? ` · ${appointment.customer}` : ''}
+                      </div>
+                      <ul className="mt-1 space-y-0.5">
+                        {appointment.entries.map((entry) => (
+                          <li
+                            key={entry.id}
+                            className="flex justify-between gap-3 text-sm"
+                          >
+                            <span className="truncate text-[var(--color-fg)]">
+                              {entry.service?.name ?? t('income.serviceFallback')}
+                            </span>
+                            <span className="tabular-nums text-[var(--color-fg-muted)]">
+                              {formatPrice(entry.amount_earned, currency)}
+                            </span>
+                          </li>
+                        ))}
+                        {appointment.tip > 0 && (
+                          <li className="flex justify-between gap-3 text-sm">
+                            <span className="text-[var(--color-fg)]">
+                              {t('income.tip')}
+                            </span>
+                            <span className="tabular-nums text-[var(--color-fg-muted)]">
+                              {formatPrice(appointment.tip, currency)}
+                            </span>
+                          </li>
+                        )}
+                      </ul>
                     </div>
-                    <div className="text-sm text-[var(--color-fg-muted)]">
-                      {formatDate(entry.provided_on)}
-                      {entry.customer ? ` · ${entry.customer}` : ''}
-                    </div>
-                  </div>
-                  <span className="tabular-nums font-medium text-[var(--color-fg)]">
-                    {formatPrice(entry.amount_earned, currency)}
-                  </span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    aria-label={t('income.deleteEntry')}
-                    onClick={() => handleDelete(entry.id)}
-                  >
-                    <Trash2 size={18} aria-hidden="true" />
-                  </Button>
-                </li>
-              ))}
+                    <span className="tabular-nums font-medium text-[var(--color-fg)]">
+                      {formatPrice(takeHome, currency)}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      aria-label={t('income.deleteEntry')}
+                      onClick={() => handleDelete(appointment.id)}
+                    >
+                      <Trash2 size={18} aria-hidden="true" />
+                    </Button>
+                  </li>
+                )
+              })}
             </ul>
           </Card>
         ) : (
