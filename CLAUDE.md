@@ -17,7 +17,9 @@ On every income entry insert, copy and store:
 - `commission_pct_snapshot` — from `profiles.commission_pct` at insert time
 - `amount_earned` — equals `price_snapshot × (commission_pct_snapshot / 100)`
 
-These are **never recalculated after insert**. Editing a service price or commission % must not touch existing entries. The formula lives in `src/lib/calc.ts` (`computeEarnings(price, commissionPct)`). Always call it explicitly on insert; do not rely on a DB trigger or default.
+These are **never recalculated after insert**. Editing a service price or commission % must not touch existing entries. The formula lives in `src/lib/calc.ts` (`computeEarnings(price, commissionPct)`). Always call it explicitly on insert; do not rely on a DB trigger or default to compute the value.
+
+Migration `0002_integrity_constraints.sql` installs a DB-level **backstop validation** trigger that rejects an `amount_earned` not matching `price_snapshot × (commission_pct_snapshot / 100)` (±0.01 tolerance) and enforces service ownership. This only validates — it does not compute — so the app must still call `computeEarnings` explicitly.
 
 ## RLS — never bypass
 

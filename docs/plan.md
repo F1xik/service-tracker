@@ -34,7 +34,7 @@ Constraints:
 
 All tables keyed to `auth.users` with **Row Level Security**.
 
-- **profiles** — `id (=auth.uid)`, `display_name`, `commission_pct numeric`, `currency text default 'USD'`, `created_at`
+- **profiles** — `id (=auth.uid)`, `display_name`, `commission_pct numeric`, `currency text default 'PLN'`, `created_at`
 - **services** — `id`, `user_id`, `name`, `price numeric`, `active bool default true`, `created_at`
 - **income_entries** — `id`, `user_id`, `service_id (fk)`, `provided_on date`, `price_snapshot numeric`, `commission_pct_snapshot numeric`, `amount_earned numeric`, `customer text null`, `note text null`, `source text default 'manual'`, `created_at`
 
@@ -59,7 +59,7 @@ src/
   components/ui/         # reusable presentational components
   routes/                # route definitions / pages
 supabase/
-  migrations/            # SQL: tables + RLS policies
+  migrations/            # SQL: tables, RLS policies, integrity constraints
 ```
 
 ## Tasks
@@ -75,7 +75,7 @@ See `docs/tasks/` for individual task files.
 | 00 | Provision Supabase & Vercel (manual, do first) | |
 | 01 | Project scaffold & PWA config | ✅ Done |
 | 02 | Supabase schema & migrations | ✅ Done |
-| 03 | Auth (sign up / sign in / session) | |
+| 03 | Auth (sign up / sign in / session) | ✅ Done |
 | 04 | Services & commission settings | |
 | 05 | Log income flow | |
 | 06 | Stats & charts | |
@@ -84,5 +84,6 @@ See `docs/tasks/` for individual task files.
 
 ## Notes / Deferred
 
+- The schema ships as two migrations: `0001_initial_schema.sql` (tables, RLS, signup trigger) and `0002_integrity_constraints.sql` (value CHECK constraints + a backstop validation trigger on `income_entries`).
 - Import file format is not finalized — CSV is the default; the real format slots in behind the same `importers` registry once provided.
 - When Capacitor wrapping is desired: point it at the Vite build output, add desired native plugins. No app code changes needed.
