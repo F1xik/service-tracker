@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Trash2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { formatPrice } from '@/lib/format'
 
 import { Button } from '@/components/ui/Button'
@@ -27,6 +28,7 @@ function formatDate(value: string): string {
 }
 
 export default function LogIncomePage() {
+  const { t } = useTranslation()
   const profileQuery = useProfile()
   const servicesQuery = useServices()
   const entriesQuery = useEntries()
@@ -55,12 +57,12 @@ export default function LogIncomePage() {
       })
       setFormKey((k) => k + 1) // remount the form to reset it
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : 'Could not save income.')
+      setSubmitError(err instanceof Error ? err.message : t('income.saveError'))
     }
   }
 
   function handleDelete(id: string) {
-    if (!window.confirm('Delete this entry? This cannot be undone.')) return
+    if (!window.confirm(t('income.deleteConfirm'))) return
     deleteEntry.mutate(id)
   }
 
@@ -71,7 +73,7 @@ export default function LogIncomePage() {
     <div className="mx-auto w-full max-w-2xl px-4 py-6">
       <header className="mb-6">
         <h1 className="text-2xl font-bold tracking-tight text-[var(--color-fg)]">
-          Log income
+          {t('income.title')}
         </h1>
       </header>
 
@@ -79,20 +81,20 @@ export default function LogIncomePage() {
         {setupLoading ? (
           <div
             role="status"
-            aria-label="Loading form"
+            aria-label={t('income.loadingForm')}
             className="flex justify-center py-10 text-[var(--color-fg-muted)]"
           >
             <Spinner />
           </div>
         ) : setupError ? (
-          <Alert variant="error">Could not load your services. Please try again.</Alert>
+          <Alert variant="error">{t('income.loadServicesError')}</Alert>
         ) : activeServices.length === 0 ? (
           <Alert variant="info">
-            You have no active services yet.{' '}
+            {t('income.noActiveServicesPrefix')}{' '}
             <Link to="/services" className="font-medium underline underline-offset-4">
-              Add a service first
+              {t('income.addServiceFirst')}
             </Link>{' '}
-            to start logging income.
+            {t('income.noActiveServicesSuffix')}
           </Alert>
         ) : (
           <Card>
@@ -110,12 +112,14 @@ export default function LogIncomePage() {
       </section>
 
       <section>
-        <h2 className="mb-3 text-lg font-semibold text-[var(--color-fg)]">Recent</h2>
+        <h2 className="mb-3 text-lg font-semibold text-[var(--color-fg)]">
+          {t('income.recent')}
+        </h2>
 
         {entriesQuery.isLoading ? (
           <div
             role="status"
-            aria-label="Loading entries"
+            aria-label={t('income.loadingEntries')}
             className="flex justify-center py-10 text-[var(--color-fg-muted)]"
           >
             <Spinner />
@@ -124,7 +128,7 @@ export default function LogIncomePage() {
           <Alert variant="error">
             {entriesQuery.error instanceof Error
               ? entriesQuery.error.message
-              : 'Could not load entries.'}
+              : t('income.loadEntriesError')}
           </Alert>
         ) : entriesQuery.data && entriesQuery.data.length > 0 ? (
           <Card className="p-0">
@@ -133,7 +137,7 @@ export default function LogIncomePage() {
                 <li key={entry.id} className="flex items-center gap-3 px-4 py-3">
                   <div className="min-w-0 grow">
                     <div className="truncate font-medium text-[var(--color-fg)]">
-                      {entry.service?.name ?? 'Service'}
+                      {entry.service?.name ?? t('income.serviceFallback')}
                     </div>
                     <div className="text-sm text-[var(--color-fg-muted)]">
                       {formatDate(entry.provided_on)}
@@ -147,7 +151,7 @@ export default function LogIncomePage() {
                     type="button"
                     variant="ghost"
                     size="icon"
-                    aria-label="Delete entry"
+                    aria-label={t('income.deleteEntry')}
                     onClick={() => handleDelete(entry.id)}
                   >
                     <Trash2 size={18} aria-hidden="true" />
@@ -159,7 +163,7 @@ export default function LogIncomePage() {
         ) : (
           <Card>
             <p className="text-center text-sm text-[var(--color-fg-muted)]">
-              No entries yet. Log your first one above.
+              {t('income.noEntries')}
             </p>
           </Card>
         )}

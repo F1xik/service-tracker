@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Wallet } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 
 import { useAuth } from './useAuth'
 import { Button } from '@/components/ui/Button'
@@ -11,15 +13,18 @@ import { Input } from '@/components/ui/Input'
 import { Field } from '@/components/ui/Field'
 import { Card } from '@/components/ui/Card'
 import { Alert } from '@/components/ui/Alert'
+import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher'
 
-const schema = z.object({
-  email: z.string().email('Enter a valid email address'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
-})
+const makeSchema = (t: TFunction) =>
+  z.object({
+    email: z.string().email(t('validation.emailInvalid')),
+    password: z.string().min(8, t('validation.passwordMin')),
+  })
 
-type FormValues = z.infer<typeof schema>
+type FormValues = z.infer<ReturnType<typeof makeSchema>>
 
 export default function SignInPage() {
+  const { t } = useTranslation()
   const { signIn } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
@@ -29,6 +34,7 @@ export default function SignInPage() {
       : null
   const [authError, setAuthError] = useState<string | null>(null)
 
+  const schema = useMemo(() => makeSchema(t), [t])
   const {
     register,
     handleSubmit,
@@ -41,7 +47,7 @@ export default function SignInPage() {
       await signIn(values.email, values.password)
       navigate('/')
     } catch (err) {
-      setAuthError(err instanceof Error ? err.message : 'Invalid email or password.')
+      setAuthError(err instanceof Error ? err.message : t('auth.invalidCredentials'))
     }
   }
 
@@ -56,9 +62,9 @@ export default function SignInPage() {
           />
         </div>
         <h1 className="text-3xl font-bold tracking-tight text-[var(--color-fg)]">
-          Income
+          {t('common.appName')}
         </h1>
-        <p className="text-sm text-[var(--color-fg-muted)]">Track what you earn.</p>
+        <p className="text-sm text-[var(--color-fg-muted)]">{t('common.tagline')}</p>
       </div>
 
       <Card className="w-full max-w-sm">
@@ -67,7 +73,12 @@ export default function SignInPage() {
           noValidate
           className="flex flex-col gap-4"
         >
-          <Field id="email" label="Email" required error={errors.email?.message}>
+          <Field
+            id="email"
+            label={t('auth.email')}
+            required
+            error={errors.email?.message}
+          >
             <Input
               id="email"
               type="email"
@@ -81,7 +92,7 @@ export default function SignInPage() {
 
           <Field
             id="password"
-            label="Password"
+            label={t('auth.password')}
             required
             error={errors.password?.message}
           >
@@ -100,20 +111,22 @@ export default function SignInPage() {
           {authError && <Alert variant="error">{authError}</Alert>}
 
           <Button type="submit" fullWidth loading={isSubmitting}>
-            Sign in
+            {t('auth.signIn')}
           </Button>
         </form>
       </Card>
 
       <p className="text-sm text-[var(--color-fg-muted)]">
-        New here?{' '}
+        {t('auth.newHere')}{' '}
         <Link
           to="/sign-up"
           className="font-medium text-[var(--color-primary)] underline-offset-4 hover:underline"
         >
-          Create account
+          {t('auth.createAccount')}
         </Link>
       </p>
+
+      <LanguageSwitcher className="w-40" />
     </div>
   )
 }

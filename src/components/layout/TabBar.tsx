@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom'
 import { BarChart3, PlusCircle, Tag, Upload } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 interface TabConfig {
   to: string
@@ -8,17 +9,18 @@ interface TabConfig {
   disabled?: boolean
 }
 
-const tabs: TabConfig[] = [
-  { to: '/', label: 'Income', icon: PlusCircle },
-  { to: '/services', label: 'Services', icon: Tag },
-  { to: '/stats', label: 'Stats', icon: BarChart3 },
-  { to: '/import', label: 'Import', icon: Upload, disabled: true },
-]
-
 const itemBase =
   'flex flex-1 flex-col items-center justify-center gap-1 py-2 text-xs font-medium'
 
 export function TabBar() {
+  const { t } = useTranslation()
+  const tabs: TabConfig[] = [
+    { to: '/', label: t('nav.income'), icon: PlusCircle },
+    { to: '/services', label: t('nav.services'), icon: Tag },
+    { to: '/stats', label: t('nav.stats'), icon: BarChart3 },
+    { to: '/import', label: t('nav.import'), icon: Upload, disabled: true },
+  ]
+
   return (
     <nav
       aria-label="Primary"
