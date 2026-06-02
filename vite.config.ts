@@ -23,8 +23,18 @@ export default defineConfig({
         theme_color: '#0f172a',
         background_color: '#0f172a',
         icons: [
-          { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
-          { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          {
+            src: 'pwa-192x192.png',
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'any',
+          },
+          {
+            src: 'pwa-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'any',
+          },
           {
             // Full-bleed wallet mark with safe-zone padding so Android's
             // adaptive icon mask doesn't crop the glyph.
