@@ -129,4 +129,48 @@ describe('EntryForm', () => {
       { service_id: 's2', price: 60 },
     ])
   })
+
+  it('renders a tip field defaulting to 0', () => {
+    setup()
+    expect(screen.getByLabelText(/Tip/)).toHaveValue(0)
+  })
+
+  it('adds the tip on top of earnings in the total (no commission on tips)', async () => {
+    const user = userEvent.setup()
+    setup()
+
+    await user.selectOptions(screen.getByLabelText(/Service/), 's1')
+    // 40 * 15% = 6.00 earned; tip of 4 → take-home 10.00.
+    await user.clear(screen.getByLabelText(/Tip/))
+    await user.type(screen.getByLabelText(/Tip/), '4')
+
+    await waitFor(() => expect(screen.getByText(/\$10\.00/)).toBeInTheDocument())
+  })
+
+  it('rejects a negative tip', async () => {
+    const user = userEvent.setup()
+    setup()
+
+    await user.selectOptions(screen.getByLabelText(/Service/), 's1')
+    const tip = screen.getByLabelText(/Tip/)
+    await user.clear(tip)
+    await user.type(tip, '-5')
+    await user.click(screen.getByRole('button', { name: 'Log income' }))
+
+    expect(await screen.findByText('Tip cannot be negative')).toBeInTheDocument()
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it('includes the tip in the submitted values', async () => {
+    const user = userEvent.setup()
+    setup()
+
+    await user.selectOptions(screen.getByLabelText(/Service/), 's1')
+    await user.clear(screen.getByLabelText(/Tip/))
+    await user.type(screen.getByLabelText(/Tip/), '7')
+    await user.click(screen.getByRole('button', { name: 'Log income' }))
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1))
+    expect(onSubmit.mock.calls[0][0].tip).toBe(7)
+  })
 })

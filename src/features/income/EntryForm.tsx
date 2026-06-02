@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { Plus, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
-import { computeEarnings, type Service } from '@/lib/calc'
+import { computeEarnings, computeTakeHome, type Service } from '@/lib/calc'
 import { formatPrice } from '@/lib/format'
 
 import { Button } from '@/components/ui/Button'
@@ -18,6 +18,7 @@ const makeSchema = (t: TFunction) =>
     provided_on: z.string().min(1, t('validation.dateRequired')),
     customer: z.string().trim().max(100, t('validation.customerMax')),
     note: z.string().trim().max(500, t('validation.noteMax')),
+    tip: z.coerce.number().nonnegative(t('validation.tipNonnegative')),
     lines: z
       .array(
         z.object({
@@ -77,6 +78,7 @@ export function EntryForm({
       provided_on: localToday(),
       customer: '',
       note: '',
+      tip: 0,
       lines: [{ service_id: '', price: undefined as unknown as number }],
     },
   })
@@ -84,13 +86,16 @@ export function EntryForm({
   const { fields, append, remove } = useFieldArray({ control, name: 'lines' })
 
   const lines = useWatch({ control, name: 'lines' })
-  const total = lines.reduce((sum, line) => {
+  const tipValue = useWatch({ control, name: 'tip' })
+  const earnedTotal = lines.reduce((sum, line) => {
     const price = Number(line?.price)
     return (
       sum +
       (Number.isFinite(price) && price > 0 ? computeEarnings(price, commissionPct) : 0)
     )
   }, 0)
+  const tip = Number(tipValue)
+  const total = computeTakeHome(earnedTotal, Number.isFinite(tip) && tip > 0 ? tip : 0)
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-5">
@@ -125,15 +130,37 @@ export function EntryForm({
         </Field>
       </div>
 
-      <Field id="note" label={t('income.note')} error={errors.note?.message}>
-        <Input
-          id="note"
-          placeholder={t('income.notePlaceholder')}
-          error={!!errors.note}
-          aria-describedby={errors.note ? 'note-error' : undefined}
-          {...register('note')}
-        />
-      </Field>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Field id="note" label={t('income.note')} error={errors.note?.message}>
+          <Input
+            id="note"
+            placeholder={t('income.notePlaceholder')}
+            error={!!errors.note}
+            aria-describedby={errors.note ? 'note-error' : undefined}
+            {...register('note')}
+          />
+        </Field>
+
+        <Field id="tip" label={t('income.tip')} error={errors.tip?.message}>
+          <div className="relative">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[var(--color-fg-subtle)]">
+              {currency}
+            </span>
+            <Input
+              id="tip"
+              type="number"
+              step="0.01"
+              min="0"
+              inputMode="decimal"
+              placeholder={t('income.tipPlaceholder')}
+              error={!!errors.tip}
+              className="pl-14"
+              aria-describedby={errors.tip ? 'tip-error' : undefined}
+              {...register('tip')}
+            />
+          </div>
+        </Field>
+      </div>
 
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">

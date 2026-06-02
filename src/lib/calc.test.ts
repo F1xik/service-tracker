@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { computeEarnings } from '@/lib/calc'
+import { computeEarnings, computeTakeHome } from '@/lib/calc'
 
 describe('computeEarnings', () => {
   it('applies the commission percentage', () => {
@@ -74,5 +74,25 @@ describe('computeEarnings', () => {
   it('treats commission as a percentage, not a fraction', () => {
     // A 1 here means 1%, not 100% — guards against a /100 regression.
     expect(computeEarnings(100, 1)).toBe(1)
+  })
+})
+
+describe('computeTakeHome', () => {
+  it('adds the tip on top of earnings (no commission on tips)', () => {
+    expect(computeTakeHome(6, 4)).toBe(10)
+    expect(computeTakeHome(37.5, 12.5)).toBe(50)
+  })
+
+  it('returns earnings unchanged when the tip is zero', () => {
+    expect(computeTakeHome(6, 0)).toBe(6)
+  })
+
+  it('cleans up float noise to two decimal places', () => {
+    // 0.1 + 0.2 = 0.30000000000000004 in float; must collapse to 0.3.
+    expect(computeTakeHome(0.1, 0.2)).toBe(0.3)
+  })
+
+  it('handles negative earnings (refunds) plus a tip', () => {
+    expect(computeTakeHome(-20, 5)).toBe(-15)
   })
 })

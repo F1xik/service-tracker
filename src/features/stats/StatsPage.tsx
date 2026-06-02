@@ -19,7 +19,13 @@ import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Spinner } from '@/components/ui/Spinner'
 
-import { filterToRange, groupByRange, groupByService, type Range } from './aggregations'
+import {
+  filterToRange,
+  groupByRange,
+  groupByService,
+  TIPS_SLICE_NAME,
+  type Range,
+} from './aggregations'
 import { useProfile } from '@/features/services/useServices'
 import { useStats } from './useStats'
 
@@ -193,11 +199,15 @@ export default function StatsPage() {
                           formatter={(_value, _entry, index) => {
                             const slice = serviceData[index]
                             if (!slice) return ''
+                            const name =
+                              slice.name === TIPS_SLICE_NAME
+                                ? t('stats.tips')
+                                : slice.name
                             const pct =
                               serviceTotal > 0
                                 ? Math.round((slice.total / serviceTotal) * 100)
                                 : 0
-                            return `${slice.name} · ${formatPrice(slice.total, currency)} · ${pct}%`
+                            return `${name} · ${formatPrice(slice.total, currency)} · ${pct}%`
                           }}
                         />
                         <Pie

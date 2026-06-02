@@ -1,11 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
 
-import { getAllEntries } from '@/features/income/api'
+import { getAllAppointments } from '@/features/income/api'
 
-// Shares the `['income-entries', ...]` prefix so the invalidation in
-// useCreateEntries / useDeleteEntry also refreshes the stats history.
-const allEntriesKey = ['income-entries', 'all'] as const
+// Shares the `['appointments', ...]` prefix so the invalidation in
+// useCreateAppointment / useDeleteAppointment also refreshes the stats history.
+const allAppointmentsKey = ['appointments', 'all'] as const
 
 export function useStats() {
-  return useQuery({ queryKey: allEntriesKey, queryFn: getAllEntries })
+  return useQuery({ queryKey: allAppointmentsKey, queryFn: getAllAppointments })
 }

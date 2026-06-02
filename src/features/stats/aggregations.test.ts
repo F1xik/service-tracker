@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
-import type { IncomeEntryWithService } from '@/features/income/api'
+import type {
+  AppointmentWithEntries,
+  IncomeEntryWithService,
+} from '@/features/income/api'
 import {
   filterToRange,
   groupByRange,
@@ -11,23 +14,41 @@ import {
 // Reference "now": Monday 2026-06-15 (so the week window is Jun 15–21).
 const now = new Date(2026, 5, 15)
 
-function entry(
-  overrides: Partial<IncomeEntryWithService> = {},
-): IncomeEntryWithService {
+let lineSeq = 0
+
+/** A single service line item beneath an appointment. */
+function line(overrides: Partial<IncomeEntryWithService> = {}): IncomeEntryWithService {
   return {
-    id: 'e1',
+    id: `e${++lineSeq}`,
     user_id: 'u1',
+    appointment_id: 'a1',
     service_id: 's1',
-    provided_on: '2026-06-15',
     price_snapshot: 100,
     commission_pct_snapshot: 10,
     amount_earned: 10,
-    customer: null,
-    note: null,
-    source: 'manual',
     created_at: '2026-06-15T00:00:00Z',
     service: { name: 'Haircut' },
     ...overrides,
+  }
+}
+
+/**
+ * An appointment. By default it carries a single 10-earned line and no tip, so
+ * its take-home is 10 — matching the old per-entry fixtures.
+ */
+function appt(overrides: Partial<AppointmentWithEntries> = {}): AppointmentWithEntries {
+  const { entries, ...rest } = overrides
+  return {
+    id: 'a1',
+    user_id: 'u1',
+    provided_on: '2026-06-15',
+    customer: null,
+    note: null,
+    tip: 0,
+    source: 'manual',
+    created_at: '2026-06-15T00:00:00Z',
+    entries: entries ?? [line({ amount_earned: 10 })],
+    ...rest,
   }
 }
 
@@ -59,41 +80,70 @@ describe('rangeBounds', () => {
 })
 
 describe('filterToRange', () => {
-  it('keeps only entries inside the window', () => {
+  it('keeps only appointments inside the window', () => {
     const result = filterToRange(
       [
-        entry({ provided_on: '2026-06-10', amount_earned: 1 }), // before week
-        entry({ provided_on: '2026-06-15', amount_earned: 2 }), // Monday, in week
-        entry({ provided_on: '2026-06-21', amount_earned: 3 }), // Sunday, in week
-        entry({ provided_on: '2026-06-22', amount_earned: 4 }), // next Monday, out
+        appt({ provided_on: '2026-06-10', tip: 1 }), // before week
+        appt({ provided_on: '2026-06-15', tip: 2 }), // Monday, in week
+        appt({ provided_on: '2026-06-21', tip: 3 }), // Sunday, in week
+        appt({ provided_on: '2026-06-22', tip: 4 }), // next Monday, out
       ],
       'week',
       now,
     )
-    expect(result.map((e) => e.amount_earned)).toEqual([2, 3])
+    expect(result.map((a) => a.tip)).toEqual([2, 3])
   })
 })
 
 describe('groupByRange', () => {
-  it('today returns a single bucket', () => {
+  it('today returns a single bucket totalling take-home (earnings + tips)', () => {
     const result = groupByRange(
       [
-        entry({ provided_on: '2026-06-15', amount_earned: 10 }),
-        entry({ provided_on: '2026-06-15', amount_earned: 5 }),
-        entry({ provided_on: '2026-06-14', amount_earned: 99 }), // yesterday, excluded
+        appt({
+          provided_on: '2026-06-15',
+          entries: [line({ amount_earned: 10 })],
+          tip: 2,
+        }),
+        appt({ provided_on: '2026-06-15', entries: [line({ amount_earned: 5 })] }),
+        appt({ provided_on: '2026-06-14', entries: [line({ amount_earned: 99 })] }), // excluded
       ],
       'today',
       now,
     )
-    expect(result).toEqual([{ label: 'Today', total: 15, count: 2 }])
+    // 10 + 2 (tip) + 5 = 17, across 2 appointments.
+    expect(result).toEqual([{ label: 'Today', total: 17, count: 2 }])
+  })
+
+  it('counts per appointment, not per line item (multi-service visit = 1 customer)', () => {
+    const result = groupByRange(
+      [
+        appt({
+          provided_on: '2026-06-15',
+          entries: [
+            line({ amount_earned: 10 }),
+            line({ amount_earned: 20 }),
+            line({ amount_earned: 5 }),
+          ],
+          tip: 3,
+        }),
+      ],
+      'today',
+      now,
+    )
+    // One visit → count 1; total = 10 + 20 + 5 + 3 tip = 38.
+    expect(result).toEqual([{ label: 'Today', total: 38, count: 1 }])
   })
 
   it('week has 7 zero-filled daily buckets Mon..Sun with totals and counts', () => {
     const result = groupByRange(
       [
-        entry({ provided_on: '2026-06-15', amount_earned: 10 }), // Mon
-        entry({ provided_on: '2026-06-15', amount_earned: 4 }), // Mon
-        entry({ provided_on: '2026-06-17', amount_earned: 7 }), // Wed
+        appt({
+          provided_on: '2026-06-15',
+          entries: [line({ amount_earned: 10 })],
+          tip: 4,
+        }), // Mon
+        appt({ provided_on: '2026-06-15', entries: [line({ amount_earned: 4 })] }), // Mon
+        appt({ provided_on: '2026-06-17', entries: [line({ amount_earned: 7 })] }), // Wed
       ],
       'week',
       now,
@@ -107,13 +157,14 @@ describe('groupByRange', () => {
       'Sat',
       'Sun',
     ])
-    expect(result.map((b) => b.total)).toEqual([14, 0, 7, 0, 0, 0, 0])
+    // Mon: 10 + 4 tip + 4 = 18; Wed: 7.
+    expect(result.map((b) => b.total)).toEqual([18, 0, 7, 0, 0, 0, 0])
     expect(result.map((b) => b.count)).toEqual([2, 0, 1, 0, 0, 0, 0])
   })
 
   it('month has one bucket per day with the day number as label', () => {
     const result = groupByRange(
-      [entry({ provided_on: '2026-06-15', amount_earned: 12 })],
+      [appt({ provided_on: '2026-06-15', entries: [line({ amount_earned: 12 })] })],
       'month',
       now,
     )
@@ -126,9 +177,9 @@ describe('groupByRange', () => {
   it('year has 12 monthly buckets Jan..Dec', () => {
     const result = groupByRange(
       [
-        entry({ provided_on: '2026-01-05', amount_earned: 3 }),
-        entry({ provided_on: '2026-06-15', amount_earned: 10 }),
-        entry({ provided_on: '2025-12-31', amount_earned: 99 }), // last year, excluded
+        appt({ provided_on: '2026-01-05', entries: [line({ amount_earned: 3 })] }),
+        appt({ provided_on: '2026-06-15', entries: [line({ amount_earned: 10 })] }),
+        appt({ provided_on: '2025-12-31', entries: [line({ amount_earned: 99 })] }), // excluded
       ],
       'year',
       now,
@@ -164,11 +215,15 @@ describe('groupByService', () => {
     expect(groupByService([])).toEqual([])
   })
 
-  it('sums per service, descending by total', () => {
+  it('sums per service across line items, descending by total', () => {
     const result = groupByService([
-      entry({ service: { name: 'Haircut' }, amount_earned: 10 }),
-      entry({ service: { name: 'Color' }, amount_earned: 25 }),
-      entry({ service: { name: 'Haircut' }, amount_earned: 5 }),
+      appt({
+        entries: [
+          line({ service: { name: 'Haircut' }, amount_earned: 10 }),
+          line({ service: { name: 'Color' }, amount_earned: 25 }),
+        ],
+      }),
+      appt({ entries: [line({ service: { name: 'Haircut' }, amount_earned: 5 })] }),
     ])
     expect(result).toEqual([
       { name: 'Color', total: 25 },
@@ -178,8 +233,35 @@ describe('groupByService', () => {
 
   it('groups null services under "Unknown service"', () => {
     const result = groupByService([
-      entry({ service: null, service_id: null, amount_earned: 8 }),
+      appt({ entries: [line({ service: null, service_id: null, amount_earned: 8 })] }),
     ])
     expect(result).toEqual([{ name: 'Unknown service', total: 8 }])
+  })
+
+  it('accumulates tips into their own "Tips" slice', () => {
+    const result = groupByService([
+      appt({
+        entries: [line({ service: { name: 'Haircut' }, amount_earned: 10 })],
+        tip: 3,
+      }),
+      appt({
+        entries: [line({ service: { name: 'Haircut' }, amount_earned: 10 })],
+        tip: 2,
+      }),
+    ])
+    expect(result).toEqual([
+      { name: 'Haircut', total: 20 },
+      { name: 'Tips', total: 5 },
+    ])
+  })
+
+  it('omits the Tips slice when there are no tips', () => {
+    const result = groupByService([
+      appt({
+        entries: [line({ service: { name: 'Haircut' }, amount_earned: 10 })],
+        tip: 0,
+      }),
+    ])
+    expect(result).toEqual([{ name: 'Haircut', total: 10 }])
   })
 })

@@ -2,17 +2,20 @@
  * Pure aggregation helpers for the stats dashboard.
  *
  * This module must have zero React imports so it stays unit-testable in
- * isolation. It sums the immutable `amount_earned` snapshots — earnings are
- * never recomputed here.
+ * isolation. It sums the immutable `amount_earned` snapshots (plus the
+ * per-appointment tip) — earnings are never recomputed here.
  *
  * The dashboard is windowed: a selected `Range` (today/week/month/year) defines
  * a time window plus the x-axis bucketing, and every chart shows only the
- * entries inside that window.
+ * appointments inside that window.
  */
 
-import type { IncomeEntryWithService } from '@/features/income/api'
+import type { AppointmentWithEntries } from '@/features/income/api'
 
 export type Range = 'today' | 'week' | 'month' | 'year'
+
+/** Pie-slice label for tips, kept distinct from any service name. */
+export const TIPS_SLICE_NAME = 'Tips'
 
 export interface RangeBucket {
   label: string
@@ -42,6 +45,12 @@ const MONTH_NAMES = [
 
 // Monday-first weekday labels, aligned with a Monday-start week window.
 const WEEKDAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+
+/** Sum of a single appointment's earned line items plus its tip. */
+function appointmentTotal(appointment: AppointmentWithEntries): number {
+  const earned = appointment.entries.reduce((sum, e) => sum + e.amount_earned, 0)
+  return earned + appointment.tip
+}
 
 /**
  * Parse a date-only `provided_on` string (YYYY-MM-DD) into a local Date.
@@ -91,26 +100,28 @@ export function rangeBounds(
   return { start, end }
 }
 
-/** Entries whose `provided_on` falls in the range window `[start, end)`. */
+/** Appointments whose `provided_on` falls in the range window `[start, end)`. */
 export function filterToRange(
-  entries: IncomeEntryWithService[],
+  appointments: AppointmentWithEntries[],
   range: Range,
   now: Date = new Date(),
-): IncomeEntryWithService[] {
+): AppointmentWithEntries[] {
   const { start, end } = rangeBounds(range, now)
-  return entries.filter((entry) => {
-    const date = parseProvidedOn(entry.provided_on)
+  return appointments.filter((appointment) => {
+    const date = parseProvidedOn(appointment.provided_on)
     return date >= start && date < end
   })
 }
 
 /**
- * Sum `amount_earned` (total) and count entries (count) per bucket across the
- * selected window. Buckets are pre-seeded so empty days/months still render,
- * keeping the x-axis continuous. Order is chronological.
+ * Sum take-home (earnings + tip) per bucket (total) and count appointments
+ * (count) across the selected window. Counting per appointment — not per line
+ * item — keeps the customer count correct for multi-service visits. Buckets are
+ * pre-seeded so empty days/months still render, keeping the x-axis continuous.
+ * Order is chronological.
  */
 export function groupByRange(
-  entries: IncomeEntryWithService[],
+  appointments: AppointmentWithEntries[],
   range: Range,
   now: Date = new Date(),
 ): RangeBucket[] {
@@ -144,12 +155,12 @@ export function groupByRange(
     }
   }
 
-  for (const entry of filterToRange(entries, range, now)) {
-    const key = bucketKey(parseProvidedOn(entry.provided_on), range)
+  for (const appointment of filterToRange(appointments, range, now)) {
+    const key = bucketKey(parseProvidedOn(appointment.provided_on), range)
     const index = indexOf.get(key)
     if (index === undefined) continue
     const bucket = buckets[index]
-    bucket.total += entry.amount_earned
+    bucket.total += appointmentTotal(appointment)
     bucket.count += 1
   }
 
@@ -168,15 +179,23 @@ function bucketKey(date: Date, range: Range): string {
 }
 
 /**
- * Sum `amount_earned` per service, sorted by total descending. Entries with no
- * service (e.g. a deleted one) are grouped under "Unknown service".
+ * Sum `amount_earned` per service, sorted by total descending. Line items with
+ * no service (e.g. a deleted one) are grouped under "Unknown service". Tips are
+ * accumulated into their own "Tips" slice so the pie total matches take-home.
  * Returns `[]` for empty input.
  */
-export function groupByService(entries: IncomeEntryWithService[]): ServiceTotal[] {
+export function groupByService(appointments: AppointmentWithEntries[]): ServiceTotal[] {
   const buckets = new Map<string, number>()
-  for (const entry of entries) {
-    const name = entry.service?.name ?? 'Unknown service'
-    buckets.set(name, (buckets.get(name) ?? 0) + entry.amount_earned)
+  let tips = 0
+  for (const appointment of appointments) {
+    tips += appointment.tip
+    for (const entry of appointment.entries) {
+      const name = entry.service?.name ?? 'Unknown service'
+      buckets.set(name, (buckets.get(name) ?? 0) + entry.amount_earned)
+    }
+  }
+  if (tips > 0) {
+    buckets.set(TIPS_SLICE_NAME, (buckets.get(TIPS_SLICE_NAME) ?? 0) + tips)
   }
   return [...buckets.entries()]
     .map(([name, total]) => ({ name, total }))
