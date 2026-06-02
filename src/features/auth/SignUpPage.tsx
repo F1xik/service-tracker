@@ -34,8 +34,21 @@ export default function SignUpPage() {
   async function onSubmit(values: FormValues) {
     setAuthError(null)
     try {
-      await signUp(values.email, values.password, values.displayName || undefined)
-      navigate('/sign-in')
+      const { needsEmailConfirmation } = await signUp(
+        values.email,
+        values.password,
+        values.displayName || undefined,
+      )
+      if (needsEmailConfirmation) {
+        // No session yet — prompt the user to confirm via email instead of
+        // silently bouncing them to a sign-in page that won't work yet.
+        navigate('/sign-in', {
+          state: { notice: 'Check your email to confirm your account, then sign in.' },
+        })
+      } else {
+        // Confirmation disabled: signUp already created a session, so go home.
+        navigate('/')
+      }
     } catch (err) {
       setAuthError(err instanceof Error ? err.message : 'Could not create account.')
     }

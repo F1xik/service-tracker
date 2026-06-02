@@ -35,10 +35,13 @@ export interface IncomeEntry {
  * rounded to two decimal places. Call this explicitly on every income insert —
  * never rely on a database trigger or default.
  *
- * The `+ Number.EPSILON` nudge guards against float representation error at the
- * half-cent boundary (e.g. `1.005 * 100` is `100.49999…`, which would otherwise
- * round down to `1.00`).
+ * Floats can land just below a half-cent boundary (e.g. `100.5 * 1 / 100 * 100`
+ * is `100.49999…`, which would otherwise round down). We correct with an epsilon
+ * scaled to the value's magnitude — a fixed `Number.EPSILON` only works near 1.0
+ * and is too small to fix the boundary for large amounts.
  */
 export function computeEarnings(price: number, commissionPct: number): number {
-  return Math.round((price * (commissionPct / 100) + Number.EPSILON) * 100) / 100
+  const scaled = price * (commissionPct / 100) * 100
+  const corrected = scaled + Math.sign(scaled) * Number.EPSILON * Math.abs(scaled) * 4
+  return Math.round(corrected) / 100
 }

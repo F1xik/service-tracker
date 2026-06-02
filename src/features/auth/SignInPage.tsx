@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Wallet } from 'lucide-react'
 
 import { useAuth } from './useAuth'
@@ -22,6 +22,11 @@ type FormValues = z.infer<typeof schema>
 export default function SignInPage() {
   const { signIn } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
+  const notice =
+    location.state && typeof location.state === 'object' && 'notice' in location.state
+      ? String((location.state as { notice: unknown }).notice)
+      : null
   const [authError, setAuthError] = useState<string | null>(null)
 
   const {
@@ -91,6 +96,7 @@ export default function SignInPage() {
             />
           </Field>
 
+          {notice && !authError && <Alert variant="info">{notice}</Alert>}
           {authError && <Alert variant="error">{authError}</Alert>}
 
           <Button type="submit" fullWidth loading={isSubmitting}>
