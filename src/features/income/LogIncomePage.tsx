@@ -146,50 +146,52 @@ export default function LogIncomePage() {
                 )
                 const takeHome = computeTakeHome(earned, appointment.tip)
                 return (
-                  <li key={appointment.id} className="flex items-start gap-3 px-4 py-3">
-                    <div className="min-w-0 grow">
-                      <div className="text-sm text-[var(--color-fg-muted)]">
+                  <li key={appointment.id} className="px-4 py-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 text-sm text-[var(--color-fg-muted)]">
                         {formatDate(appointment.provided_on)}
                         {appointment.customer ? ` · ${appointment.customer}` : ''}
                       </div>
-                      <ul className="mt-1 space-y-0.5">
-                        {appointment.entries.map((entry) => (
-                          <li
-                            key={entry.id}
-                            className="flex justify-between gap-3 text-sm"
-                          >
-                            <span className="truncate text-[var(--color-fg)]">
-                              {entry.service?.name ?? t('income.serviceFallback')}
-                            </span>
-                            <span className="tabular-nums text-[var(--color-fg-muted)]">
-                              {formatPrice(entry.amount_earned, currency)}
-                            </span>
-                          </li>
-                        ))}
-                        {appointment.tip > 0 && (
-                          <li className="flex justify-between gap-3 text-sm">
-                            <span className="text-[var(--color-fg)]">
-                              {t('income.tip')}
-                            </span>
-                            <span className="tabular-nums text-[var(--color-fg-muted)]">
-                              {formatPrice(appointment.tip, currency)}
-                            </span>
-                          </li>
-                        )}
-                      </ul>
+                      <div className="flex shrink-0 items-center gap-1">
+                        <span className="tabular-nums font-medium text-[var(--color-fg)]">
+                          {formatPrice(takeHome, currency)}
+                        </span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          aria-label={t('income.deleteEntry')}
+                          onClick={() => handleDelete(appointment.id)}
+                        >
+                          <Trash2 size={18} aria-hidden="true" />
+                        </Button>
+                      </div>
                     </div>
-                    <span className="tabular-nums font-medium text-[var(--color-fg)]">
-                      {formatPrice(takeHome, currency)}
-                    </span>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      aria-label={t('income.deleteEntry')}
-                      onClick={() => handleDelete(appointment.id)}
-                    >
-                      <Trash2 size={18} aria-hidden="true" />
-                    </Button>
+                    <ul className="mt-1 space-y-0.5">
+                      {appointment.entries.map((entry) => (
+                        <li
+                          key={entry.id}
+                          className="flex justify-between gap-3 text-sm"
+                        >
+                          <span className="line-clamp-2 min-w-0 break-words text-[var(--color-fg)]">
+                            {entry.service?.name ?? t('income.serviceFallback')}
+                          </span>
+                          <span className="shrink-0 tabular-nums text-[var(--color-fg-muted)]">
+                            {formatPrice(entry.amount_earned, currency)}
+                          </span>
+                        </li>
+                      ))}
+                      {appointment.tip > 0 && (
+                        <li className="flex justify-between gap-3 text-sm">
+                          <span className="line-clamp-2 min-w-0 break-words text-[var(--color-fg)]">
+                            {t('income.tip')}
+                          </span>
+                          <span className="shrink-0 tabular-nums text-[var(--color-fg-muted)]">
+                            {formatPrice(appointment.tip, currency)}
+                          </span>
+                        </li>
+                      )}
+                    </ul>
                   </li>
                 )
               })}
