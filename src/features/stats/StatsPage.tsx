@@ -20,6 +20,7 @@ import { Field } from '@/components/ui/Field'
 import { Input } from '@/components/ui/Input'
 import { Spinner } from '@/components/ui/Spinner'
 
+import { ChartTooltip } from './ChartTooltip'
 import {
   customWindow,
   filterToRange,
@@ -52,9 +53,10 @@ const PRESET_LABEL_KEY: Record<StatsPreset, string> = {
 }
 
 const INCOME_COLOR = 'var(--color-primary)'
-const INCOME_ACTIVE_COLOR = 'var(--color-primary-hover)'
 const COUNT_COLOR = '#16a34a'
-const COUNT_ACTIVE_COLOR = '#15803d'
+// Amber highlight, distinct in hue from both bar fills (blue income, green
+// customers), so the hovered/selected bar clearly stands out in either theme.
+const BAR_ACTIVE_COLOR = '#f59e0b'
 
 // Distinct, color-blind-friendly palette cycled across pie slices.
 const PIE_COLORS = [
@@ -250,13 +252,18 @@ export default function StatsPage() {
                         <YAxis fontSize={12} tickLine={false} width={48} />
                         <Tooltip
                           cursor={false}
-                          formatter={(value: number) => formatPrice(value, currency)}
+                          content={
+                            <ChartTooltip
+                              formatValue={(value) => formatPrice(value, currency)}
+                              color={BAR_ACTIVE_COLOR}
+                            />
+                          }
                         />
                         <Bar
                           dataKey="total"
                           name={t('stats.earned')}
                           fill={INCOME_COLOR}
-                          activeBar={{ fill: INCOME_ACTIVE_COLOR }}
+                          activeBar={{ fill: BAR_ACTIVE_COLOR }}
                           radius={[4, 4, 0, 0]}
                         />
                       </BarChart>
@@ -282,13 +289,18 @@ export default function StatsPage() {
                         />
                         <Tooltip
                           cursor={false}
-                          formatter={(value: number) => String(value)}
+                          content={
+                            <ChartTooltip
+                              formatValue={(value) => String(value)}
+                              color={BAR_ACTIVE_COLOR}
+                            />
+                          }
                         />
                         <Bar
                           dataKey="count"
                           name={t('stats.customers')}
                           fill={COUNT_COLOR}
-                          activeBar={{ fill: COUNT_ACTIVE_COLOR }}
+                          activeBar={{ fill: BAR_ACTIVE_COLOR }}
                           radius={[4, 4, 0, 0]}
                         />
                       </BarChart>
@@ -306,7 +318,12 @@ export default function StatsPage() {
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Tooltip
-                          formatter={(value: number) => formatPrice(value, currency)}
+                          content={
+                            <ChartTooltip
+                              labelFromPayload
+                              formatValue={(value) => formatPrice(value, currency)}
+                            />
+                          }
                         />
                         <Pie
                           data={serviceData}
