@@ -11,7 +11,7 @@ import { Alert } from '@/components/ui/Alert'
 import { Spinner } from '@/components/ui/Spinner'
 
 import { DateRangePicker, type DateRange, type PresetId } from './DateRangePicker'
-import { appointmentTakeHome, groupAppointmentsByDate } from './grouping'
+import { groupAppointmentsByDate } from './grouping'
 import { useDeleteAppointment, useInfiniteAppointments } from './useIncome'
 
 function formatDate(value: string): string {
@@ -111,20 +111,16 @@ export function IncomeHistory({ currency }: IncomeHistoryProps) {
                           <div className="min-w-0 break-words text-sm font-medium text-[var(--color-fg)]">
                             {appointment.customer ?? ''}
                           </div>
-                          <div className="flex shrink-0 items-center gap-1">
-                            <span className="tabular-nums font-medium text-[var(--color-fg)]">
-                              {formatPrice(appointmentTakeHome(appointment), currency)}
-                            </span>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              aria-label={t('income.deleteEntry')}
-                              onClick={() => handleDelete(appointment.id)}
-                            >
-                              <Trash2 size={18} aria-hidden="true" />
-                            </Button>
-                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="shrink-0"
+                            aria-label={t('income.deleteEntry')}
+                            onClick={() => handleDelete(appointment.id)}
+                          >
+                            <Trash2 size={18} aria-hidden="true" />
+                          </Button>
                         </div>
                         <ul className="mt-1 space-y-0.5">
                           {appointment.entries.map((entry) => (

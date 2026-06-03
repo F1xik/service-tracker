@@ -155,9 +155,9 @@ describe('IncomeHistory', () => {
     // The date appears once, as a group header that leads with the short weekday
     // (2026-06-02 is a Tuesday; the test locale renders it as "Tue, Jun 2, 2026").
     expect(within(list).getAllByText(/Tue, Jun 2, 2026/)).toHaveLength(1)
-    // With no tip, the line amount, the appointment take-home, and the day total
-    // all read $6.00.
-    expect(within(list).getAllByText('$6.00')).toHaveLength(3)
+    // With no tip, the service take-home line and the day total both read $6.00
+    // (no per-appointment total is shown).
+    expect(within(list).getAllByText('$6.00')).toHaveLength(2)
   })
 
   it('groups appointments by date with one header and a daily total per day', () => {
@@ -187,9 +187,8 @@ describe('IncomeHistory', () => {
     const list = screen.getAllByRole('list')[0]
     expect(within(list).getByText('Tip')).toBeInTheDocument()
     expect(within(list).getByText('$4.00')).toBeInTheDocument()
-    // 6 earned + 4 tip = 10 take-home, shown as both the appointment total and
-    // the (single-appointment) day total.
-    expect(within(list).getAllByText('$10.00')).toHaveLength(2)
+    // 6 earned + 4 tip = 10, shown only as the (single-appointment) day total.
+    expect(within(list).getByText('$10.00')).toBeInTheDocument()
   })
 
   it('deletes an appointment after confirmation', async () => {
