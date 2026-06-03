@@ -262,7 +262,7 @@ icon is the only label, add `aria-label`.
 | Concept | Icon | Concept | Icon |
 |---|---|---|---|
 | Log income (tab/CTA) | `circle-plus` | Services | `tag` |
-| Stats | `chart-column` | Import | `upload` |
+| Stats | `chart-column` | Settings | `settings` |
 | Money / earnings | `wallet` | Currency | `coins` |
 | Commission % | `percent` | Date | `calendar` |
 | Customer | `user-round` | Note | `pencil-line` |
@@ -319,12 +319,12 @@ Standard wrapper composing **label + control + helper/error**, built for react-h
 - **Card** — `surface` bg, `--color-border`, `--radius-lg`, `--shadow-sm`, padding 16–20. Slots: `header` (title + optional action), `body`, `footer`.
 - **StatCard** — `caption` label + `display`/`mono-num` value (`tabular`) + optional delta pill (▲ positive / ▼ negative colored by sign). The glanceable hero unit on Stats.
 - **List / ListItem** — used for recent entries: leading icon/avatar, primary + secondary text, trailing value (`tabular`) and overflow action. Rows divide with `--color-border`; hover `--color-surface-muted`.
-- **Table** — ≥md: real columns with sticky header, right-aligned numeric cells (`tabular`). < md: **collapses to stacked cards** (label/value pairs) to stay readable one-handed. Used by Import preview.
+- **Table** — ≥md: real columns with sticky header, right-aligned numeric cells (`tabular`). < md: **collapses to stacked cards** (label/value pairs) to stay readable one-handed.
 - **SectionHeader** — `h2` + optional description + right-aligned action; consistent vertical rhythm.
 
 ### 4.5 Feedback
 
-- **Badge / Pill** — `caption`, `--radius-full`, subtle-bg + status-fg. Presets: `Active` (positive), `Inactive` (neutral), `Imported` (info, source=import), `Manual` (neutral).
+- **Badge / Pill** — `caption`, `--radius-full`, subtle-bg + status-fg. Presets: `Active` (positive), `Inactive` (neutral), `Manual` (neutral).
 - **Toast** — bottom (above tab bar), auto-dismiss ~4s, variants success/error/info, optional **Undo** action (used for delete). **Radix Toast.**
 - **Alert / Banner** — inline, icon + message, variants info/warning/error/success; subtle bg + matching border.
 - **Skeleton** — shimmer blocks matching final layout; one per query-backed region.
@@ -362,7 +362,7 @@ Mobile (< md)                          Desktop (≥ md)
 
 - **TopBar** — sticky, `surface` + bottom hairline, screen title (`h1`), right-side account
   dropdown (`circle-user-round`).
-- **Bottom tab bar** — sticky, 4 destinations (Income / Services / Stats / Import), icon +
+- **Bottom tab bar** — sticky, 4 destinations (Income / Services / Stats / Settings), icon +
   `caption` label, active item in `--color-primary` with a 2px top indicator; `padding-bottom:
   env(safe-area-inset-bottom)`. Each tab ≥44px.
 - **Sidebar (≥md)** — same 4 destinations vertically; tab bar hidden; content max-width applies.
@@ -544,49 +544,6 @@ Add/Edit  → Dialog (bottom sheet on mobile)
   yet — your charts appear once you log entries") · error (Retry).
 - **Desktop:** stat cards in a 3-up row; the two charts side-by-side at `lg`.
 
-### 5.5 Import
-
-```
-┌──────────────────────────┐
-│ TopBar  Import        ⊙  │
-├──────────────────────────┤
-│ ┌── Dropzone ──────────┐ │
-│ │   ⬆  Drop CSV here   │ │  drag-drop / tap; file-up icon
-│ │   or tap to browse   │ │
-│ └──────────────────────┘ │
-│ Preview · 12 rows        │  SectionHeader (after parse)
-│ ┌──────────────────────┐ │  Table → stacked cards on mobile
-│ │ Jun 1 Haircut  $40 ✓ │ │
-│ │ Jun 2 ???      $90 ⚠ │ │  invalid row: red bg + reason
-│ │   ⚠ Unknown service  │ │
-│ └──────────────────────┘ │
-│ 10 valid · 2 with notes  │  summary line
-│ [ Import 10 entries  ]   │  primary, sticky bottom bar
-├──────────────────────────┤
-│ [＋Income][Svc][Stat][Imp]│
-└──────────────────────────┘
-
-Result
-┌──────────────────────────┐
-│   🎉  Imported 10 entries │  success Alert/EmptyState
-│   2 rows had unknown svc  │
-│   [ View income ]        │
-└──────────────────────────┘
-```
-
-- **Flow:** **Upload → Preview → Confirm → Result.** Detect format by extension (`.csv`),
-  parse (PapaParse), validate each row with Zod into `ImportRow`.
-- **Components:** `Dropzone` (custom), preview `Table` (stacked on mobile) with invalid rows
-  in `--color-negative-subtle` bg + inline reason, sticky confirm `Button`, success
-  `Alert`/EmptyState result.
-- **Behavior:** invalid rows are highlighted with their error but **don't block** valid rows.
-  On confirm, valid rows bulk-insert: match `service_name` to existing services
-  (case-insensitive), apply **current** `commission_pct`, set `source = 'import'`; unknown
-  service names insert with `service_id = null` but still import. Imported entries show up in
-  Log Income and Stats.
-- **States:** idle (dropzone only) · parsing (skeleton) · preview (table + counts) ·
-  importing (button spinner) · done (result) · parse error (Alert "Couldn't read this file").
-
 ---
 
 ## 6. Patterns & guidance
@@ -617,7 +574,7 @@ screens where a skeleton communicates structure better.
 - **Semantics:** labels tied to controls; `aria-invalid`/`aria-describedby` on errors; Radix
   supplies roles/keyboard/focus-trap for overlays, tabs, select.
 - **Color is never the only signal:** pair with icon/text (e.g. Inactive badge + muted style;
-  invalid import row + ⚠ reason).
+  invalid form field + ⚠ reason).
 - **Motion:** honor `prefers-reduced-motion` (disable chart/overlay animations).
 
 ### 6.5 Responsive strategy

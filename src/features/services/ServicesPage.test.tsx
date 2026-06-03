@@ -7,7 +7,6 @@ const createMutateAsync = vi.hoisted(() => vi.fn())
 const updateMutate = vi.hoisted(() => vi.fn())
 const updateMutateAsync = vi.hoisted(() => vi.fn())
 const deleteMutate = vi.hoisted(() => vi.fn())
-const updateProfileMutateAsync = vi.hoisted(() => vi.fn())
 
 const state = vi.hoisted(() => ({
   services: {
@@ -16,7 +15,7 @@ const state = vi.hoisted(() => ({
     error: null as unknown,
     data: [] as Service[],
   },
-  profile: { data: { currency: 'PLN', commission_pct: 15 } },
+  profile: { data: { currency: 'PLN' } },
 }))
 
 vi.mock('./useServices', () => ({
@@ -29,12 +28,6 @@ vi.mock('./useServices', () => ({
     isPending: false,
   }),
   useDeleteService: () => ({ mutate: deleteMutate }),
-  useUpdateProfile: () => ({
-    mutateAsync: updateProfileMutateAsync,
-    isPending: false,
-    isError: false,
-    error: null,
-  }),
 }))
 
 import ServicesPage from './ServicesPage'
@@ -56,14 +49,13 @@ describe('ServicesPage', () => {
     vi.clearAllMocks()
     createMutateAsync.mockResolvedValue(undefined)
     updateMutateAsync.mockResolvedValue(undefined)
-    updateProfileMutateAsync.mockResolvedValue(undefined)
     state.services = {
       isLoading: false,
       isError: false,
       error: null,
       data: [service()],
     }
-    state.profile = { data: { currency: 'PLN', commission_pct: 15 } }
+    state.profile = { data: { currency: 'PLN' } }
   })
 
   it('renders the services from the query', () => {
@@ -134,20 +126,6 @@ describe('ServicesPage', () => {
     await user.click(screen.getByRole('menuitem', { name: 'Delete' }))
 
     expect(deleteMutate).toHaveBeenCalledWith('s1')
-  })
-
-  it('saves the commission percentage', async () => {
-    const user = userEvent.setup()
-    render(<ServicesPage />)
-
-    const commission = screen.getByLabelText(/Commission/)
-    await user.clear(commission)
-    await user.type(commission, '20')
-    await user.click(screen.getByRole('button', { name: 'Save' }))
-
-    await waitFor(() =>
-      expect(updateProfileMutateAsync).toHaveBeenCalledWith({ commission_pct: 20 }),
-    )
   })
 
   it('shows an error alert when the services query fails', () => {

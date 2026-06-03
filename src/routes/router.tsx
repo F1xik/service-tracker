@@ -15,6 +15,7 @@ import { RouteFallback } from '@/components/ui/RouteFallback'
 const LogIncomePage = lazy(() => import('@/features/income/LogIncomePage'))
 const ServicesPage = lazy(() => import('@/features/services/ServicesPage'))
 const StatsPage = lazy(() => import('@/features/stats/StatsPage'))
+const SettingsPage = lazy(() => import('@/features/settings/SettingsPage'))
 const SignInPage = lazy(() => import('@/features/auth/SignInPage'))
 const SignUpPage = lazy(() => import('@/features/auth/SignUpPage'))
 
@@ -32,6 +33,7 @@ export const router = createBrowserRouter([
           { path: '/', element: withSuspense(<LogIncomePage />) },
           { path: '/services', element: withSuspense(<ServicesPage />) },
           { path: '/stats', element: withSuspense(<StatsPage />) },
+          { path: '/settings', element: withSuspense(<SettingsPage />) },
         ],
       },
     ],

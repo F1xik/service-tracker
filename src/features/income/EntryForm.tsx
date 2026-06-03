@@ -56,7 +56,8 @@ export function EntryForm({
   submitting = false,
   submitError,
 }: EntryFormProps) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const locale = i18n.language
   const schema = useMemo(() => makeSchema(t), [t])
   const {
     register,
@@ -265,7 +266,7 @@ export function EntryForm({
               <p className="mt-2 text-xs text-[var(--color-fg-muted)]">
                 {t('income.youEarn')}{' '}
                 <span className="font-medium tabular-nums text-[var(--color-fg)]">
-                  {formatPrice(earned, currency)}
+                  {formatPrice(earned, currency, locale)}
                 </span>{' '}
                 {t('income.commissionNote', { pct: commissionPct })}
               </p>
@@ -279,7 +280,7 @@ export function EntryForm({
           {t('income.totalEarned')}
         </span>
         <span className="text-lg font-semibold tabular-nums text-[var(--color-fg)]">
-          {formatPrice(total, currency)}
+          {formatPrice(total, currency, locale)}
         </span>
       </div>
 
