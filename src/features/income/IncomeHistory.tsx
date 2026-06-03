@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
-import { computeTakeHome } from '@/lib/calc'
 import { formatPrice } from '@/lib/format'
 import { shiftDays, todayLocal } from '@/lib/date'
 
@@ -12,6 +11,7 @@ import { Alert } from '@/components/ui/Alert'
 import { Spinner } from '@/components/ui/Spinner'
 
 import { DateRangePicker, type DateRange, type PresetId } from './DateRangePicker'
+import { groupAppointmentsByDate } from './grouping'
 import { useDeleteAppointment, useInfiniteAppointments } from './useIncome'
 
 function formatDate(value: string): string {
@@ -89,62 +89,69 @@ export function IncomeHistory({ currency }: IncomeHistoryProps) {
         <>
           <Card className="p-0">
             <ul className="divide-y divide-[var(--color-border)]">
-              {appointments.map((appointment) => {
-                const earned = appointment.entries.reduce(
-                  (sum, e) => sum + e.amount_earned,
-                  0,
-                )
-                const takeHome = computeTakeHome(earned, appointment.tip)
-                return (
-                  <li key={appointment.id} className="px-4 py-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 text-sm text-[var(--color-fg-muted)]">
-                        {formatDate(appointment.provided_on)}
-                        {appointment.customer ? ` · ${appointment.customer}` : ''}
-                      </div>
-                      <div className="flex shrink-0 items-center gap-1">
-                        <span className="tabular-nums font-medium text-[var(--color-fg)]">
-                          {formatPrice(takeHome, currency)}
-                        </span>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          aria-label={t('income.deleteEntry')}
-                          onClick={() => handleDelete(appointment.id)}
-                        >
-                          <Trash2 size={18} aria-hidden="true" />
-                        </Button>
-                      </div>
-                    </div>
-                    <ul className="mt-1 space-y-0.5">
-                      {appointment.entries.map((entry) => (
-                        <li
-                          key={entry.id}
-                          className="flex justify-between gap-3 text-sm"
-                        >
-                          <span className="line-clamp-2 min-w-0 break-words text-[var(--color-fg)]">
-                            {entry.service?.name ?? t('income.serviceFallback')}
-                          </span>
-                          <span className="shrink-0 tabular-nums text-[var(--color-fg-muted)]">
-                            {formatPrice(entry.amount_earned, currency)}
-                          </span>
-                        </li>
-                      ))}
-                      {appointment.tip > 0 && (
-                        <li className="flex justify-between gap-3 text-sm">
-                          <span className="line-clamp-2 min-w-0 break-words text-[var(--color-fg)]">
-                            {t('income.tip')}
-                          </span>
-                          <span className="shrink-0 tabular-nums text-[var(--color-fg-muted)]">
-                            {formatPrice(appointment.tip, currency)}
-                          </span>
-                        </li>
-                      )}
-                    </ul>
-                  </li>
-                )
-              })}
+              {groupAppointmentsByDate(appointments).map((group) => (
+                <li key={group.date}>
+                  <div className="flex items-baseline justify-between gap-3 bg-[var(--color-surface-muted)] px-4 py-2">
+                    <h3 className="text-sm font-semibold text-[var(--color-fg)]">
+                      {formatDate(group.date)}
+                    </h3>
+                    <span
+                      className="shrink-0 tabular-nums text-sm font-semibold text-[var(--color-fg)]"
+                      aria-label={t('income.dayTotal', {
+                        date: formatDate(group.date),
+                      })}
+                    >
+                      {formatPrice(group.total, currency)}
+                    </span>
+                  </div>
+                  <ul className="divide-y divide-[var(--color-border)]">
+                    {group.appointments.map((appointment) => (
+                      <li key={appointment.id} className="px-4 py-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 break-words text-sm font-medium text-[var(--color-fg)]">
+                            {appointment.customer ?? ''}
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="shrink-0"
+                            aria-label={t('income.deleteEntry')}
+                            onClick={() => handleDelete(appointment.id)}
+                          >
+                            <Trash2 size={18} aria-hidden="true" />
+                          </Button>
+                        </div>
+                        <ul className="mt-1 space-y-0.5">
+                          {appointment.entries.map((entry) => (
+                            <li
+                              key={entry.id}
+                              className="flex justify-between gap-3 text-sm"
+                            >
+                              <span className="line-clamp-2 min-w-0 break-words text-[var(--color-fg-muted)]">
+                                {entry.service?.name ?? t('income.serviceFallback')}
+                              </span>
+                              <span className="shrink-0 tabular-nums text-[var(--color-fg-muted)]">
+                                {formatPrice(entry.amount_earned, currency)}
+                              </span>
+                            </li>
+                          ))}
+                          {appointment.tip > 0 && (
+                            <li className="flex justify-between gap-3 text-sm">
+                              <span className="line-clamp-2 min-w-0 break-words text-[var(--color-fg-muted)]">
+                                {t('income.tip')}
+                              </span>
+                              <span className="shrink-0 tabular-nums text-[var(--color-fg-muted)]">
+                                {formatPrice(appointment.tip, currency)}
+                              </span>
+                            </li>
+                          )}
+                        </ul>
+                      </li>
+                    ))}
+                  </ul>
+                </li>
+              ))}
             </ul>
           </Card>
 
