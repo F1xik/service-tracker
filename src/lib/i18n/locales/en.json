@@ -7,10 +7,14 @@
     "income": "Income",
     "services": "Services",
     "stats": "Stats",
-    "import": "Import"
+    "settings": "Settings"
   },
   "settings": {
-    "language": "Language"
+    "title": "Settings",
+    "language": "Language",
+    "commissionLabel": "Commission %",
+    "commissionInfo": "Applies to new entries only. Past entries keep their saved snapshot.",
+    "saveCommissionError": "Could not save commission."
   },
   "auth": {
     "email": "Email",
@@ -76,10 +80,6 @@
   },
   "services": {
     "title": "Services",
-    "settings": "Settings",
-    "commissionLabel": "Commission %",
-    "commissionInfo": "Applies to new entries only. Past entries keep their saved snapshot.",
-    "saveCommissionError": "Could not save commission.",
     "save": "Save",
     "saved": "Saved",
     "add": "Add",

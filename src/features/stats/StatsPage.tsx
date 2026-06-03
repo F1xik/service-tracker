@@ -78,10 +78,11 @@ function serviceLabel(
   serviceTotal: number,
   currency: string,
   t: (key: string) => string,
+  locale: string,
 ): string {
   const name = slice.name === TIPS_SLICE_NAME ? t('stats.tips') : slice.name
   const pct = serviceTotal > 0 ? Math.round((slice.total / serviceTotal) * 100) : 0
-  return `${name} · ${formatPrice(slice.total, currency)} · ${pct}%`
+  return `${name} · ${formatPrice(slice.total, currency, locale)} · ${pct}%`
 }
 
 export default function StatsPage() {
@@ -237,7 +238,7 @@ export default function StatsPage() {
                     {t('stats.totalEarned')}
                   </p>
                   <p className="mt-1 break-words text-xl font-bold leading-tight text-[var(--color-fg)] tabular-nums">
-                    {formatPrice(incomeTotal, currency)}
+                    {formatPrice(incomeTotal, currency, locale)}
                   </p>
                 </Card>
                 <Card className="min-w-0">
@@ -253,7 +254,7 @@ export default function StatsPage() {
                     {t('stats.totalIncomeExclTips')}
                   </p>
                   <p className="mt-1 break-words text-xl font-bold leading-tight text-[var(--color-fg)] tabular-nums">
-                    {formatPrice(incomeExclTips, currency)}
+                    {formatPrice(incomeExclTips, currency, locale)}
                   </p>
                 </Card>
                 <Card className="min-w-0">
@@ -261,7 +262,7 @@ export default function StatsPage() {
                     {t('stats.totalTips')}
                   </p>
                   <p className="mt-1 break-words text-xl font-bold leading-tight text-[var(--color-fg)] tabular-nums">
-                    {formatPrice(tipsTotal, currency)}
+                    {formatPrice(tipsTotal, currency, locale)}
                   </p>
                 </Card>
               </div>
@@ -280,7 +281,9 @@ export default function StatsPage() {
                           cursor={false}
                           content={
                             <ChartTooltip
-                              formatValue={(value) => formatPrice(value, currency)}
+                              formatValue={(value) =>
+                                formatPrice(value, currency, locale)
+                              }
                               color={BAR_ACTIVE_COLOR}
                             />
                           }
@@ -347,7 +350,9 @@ export default function StatsPage() {
                           content={
                             <ChartTooltip
                               labelFromPayload
-                              formatValue={(value) => formatPrice(value, currency)}
+                              formatValue={(value) =>
+                                formatPrice(value, currency, locale)
+                              }
                             />
                           }
                         />
@@ -384,7 +389,7 @@ export default function StatsPage() {
                           />
                         </svg>
                         <span className="truncate">
-                          {serviceLabel(slice, serviceTotal, currency, t)}
+                          {serviceLabel(slice, serviceTotal, currency, t, locale)}
                         </span>
                       </li>
                     ))}

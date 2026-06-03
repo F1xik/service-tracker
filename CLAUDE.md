@@ -40,13 +40,11 @@ Only these two. Both are `VITE_`-prefixed (Vite public env). Always read from `i
 src/
   lib/supabase.ts           # client init only
   lib/calc.ts               # pure functions — zero React imports, unit-testable
-  lib/importers/index.ts    # parser registry
-  lib/importers/csv.ts      # CSV parser (PapaParse)
   features/auth/
   features/services/
   features/income/
   features/stats/
-  features/import/
+  features/settings/
   components/ui/            # shared presentational components only
   routes/
 supabase/migrations/        # SQL DDL only
@@ -59,10 +57,10 @@ supabase/migrations/        # SQL DDL only
 Vitest. Test files live next to their source as `*.test.ts` (logic) or `*.test.tsx` (components/hooks). Component and hook tests run under jsdom with React Testing Library; the setup file is `src/test/setup.ts`. Run `npm run test` (CI also runs lint, format:check, typecheck, build — all must pass).
 
 - **`src/lib/calc.ts` must keep full unit coverage** — it is the money path enforcing the snapshot invariant. Cover the happy path plus rounding boundaries and negative amounts. It stays React-free so these tests run in isolation.
-- **Pure logic in `src/lib` requires unit tests** (e.g. importers/parsers): valid input, malformed input, and edge cases.
+- **Pure logic in `src/lib` requires unit tests** (e.g. parsers/formatters): valid input, malformed input, and edge cases.
 - **New features should test their core behavior and error paths** — form validation, the success path, and the failure/error branch. Mock `src/lib/supabase.ts` in component tests; never hit a real backend.
 - Not every change needs a test — styling, copy, and pure-markup tweaks don't. Use judgment: if it has branching logic or could silently regress, test it.
 
 ## Tasks
 
-Implement in order 01 → 08. Each `docs/tasks/NN-*.md` file has acceptance criteria — treat them as the definition of done.
+Implement in order 01 → 08 (task 07 "Import" was dropped — that feature is not being built). Each `docs/tasks/NN-*.md` file has acceptance criteria — treat them as the definition of done.

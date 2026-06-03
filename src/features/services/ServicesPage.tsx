@@ -1,21 +1,15 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
+import { useEffect, useRef, useState } from 'react'
 import { MoreHorizontal, Plus } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import type { TFunction } from 'i18next'
 import type { Service } from '@/lib/calc'
+import { formatPrice } from '@/lib/format'
 
 import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/Input'
-import { Field } from '@/components/ui/Field'
 import { Card } from '@/components/ui/Card'
 import { Alert } from '@/components/ui/Alert'
 import { Spinner } from '@/components/ui/Spinner'
 import { Switch } from '@/components/ui/Switch'
 import { Dialog } from '@/components/ui/Dialog'
-import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher'
 
 import { ServiceForm, type ServiceFormValues } from './ServiceForm'
 import {
@@ -23,121 +17,10 @@ import {
   useDeleteService,
   useProfile,
   useServices,
-  useUpdateProfile,
   useUpdateService,
 } from './useServices'
 
 const DEFAULT_CURRENCY = 'PLN'
-
-function formatPrice(value: number, currency: string): string {
-  try {
-    return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(
-      value,
-    )
-  } catch {
-    return value.toFixed(2)
-  }
-}
-
-const makeCommissionSchema = (t: TFunction) =>
-  z.object({
-    commission_pct: z.coerce
-      .number()
-      .min(0, t('validation.commissionRange'))
-      .max(100, t('validation.commissionRange')),
-  })
-
-type CommissionValues = z.infer<ReturnType<typeof makeCommissionSchema>>
-
-/** Language preference picker — persists to localStorage via the detector. */
-function LanguageSettings() {
-  const { t } = useTranslation()
-  return (
-    <Card>
-      <Field id="language-switcher" label={t('settings.language')}>
-        <LanguageSwitcher className="max-w-xs" />
-      </Field>
-    </Card>
-  )
-}
-
-function CommissionSettings() {
-  const { t } = useTranslation()
-  const profileQuery = useProfile()
-  const updateProfile = useUpdateProfile()
-  const [saved, setSaved] = useState(false)
-
-  const schema = useMemo(() => makeCommissionSchema(t), [t])
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<CommissionValues>({
-    resolver: zodResolver(schema),
-    values: { commission_pct: profileQuery.data?.commission_pct ?? 0 },
-  })
-
-  async function onSubmit(values: CommissionValues) {
-    setSaved(false)
-    await updateProfile.mutateAsync({ commission_pct: values.commission_pct })
-    setSaved(true)
-  }
-
-  return (
-    <Card>
-      <form
-        onSubmit={handleSubmit(onSubmit)}
-        noValidate
-        className="flex flex-col gap-4"
-      >
-        <Field
-          id="commission"
-          label={t('services.commissionLabel')}
-          required
-          error={errors.commission_pct?.message}
-        >
-          <div className="relative max-w-40">
-            <Input
-              id="commission"
-              type="number"
-              step="0.1"
-              min="0"
-              max="100"
-              inputMode="decimal"
-              error={!!errors.commission_pct}
-              className="pr-9"
-              {...register('commission_pct')}
-            />
-            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-[var(--color-fg-subtle)]">
-              %
-            </span>
-          </div>
-        </Field>
-
-        <Alert variant="info">{t('services.commissionInfo')}</Alert>
-
-        {updateProfile.isError && (
-          <Alert variant="error">
-            {updateProfile.error instanceof Error
-              ? updateProfile.error.message
-              : t('services.saveCommissionError')}
-          </Alert>
-        )}
-
-        <div className="flex items-center gap-3">
-          <Button type="submit" loading={updateProfile.isPending}>
-            {t('services.save')}
-          </Button>
-          {saved && !updateProfile.isPending && (
-            <span className="text-sm text-[var(--color-positive)]">
-              {t('services.saved')}
-            </span>
-          )}
-        </div>
-      </form>
-    </Card>
-  )
-}
 
 interface RowMenuProps {
   serviceName: string
@@ -206,7 +89,8 @@ function RowMenu({ serviceName, onEdit, onDelete }: RowMenuProps) {
 }
 
 export default function ServicesPage() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const locale = i18n.language
   const profileQuery = useProfile()
   const servicesQuery = useServices()
   const createService = useCreateService()
@@ -264,33 +148,17 @@ export default function ServicesPage() {
 
   return (
     <div className="mx-auto w-full max-w-2xl px-4 py-6">
-      <header className="mb-6">
+      <header className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight text-[var(--color-fg)]">
           {t('services.title')}
         </h1>
+        <Button type="button" variant="secondary" size="sm" onClick={openAdd}>
+          <Plus size={16} aria-hidden="true" />
+          {t('services.add')}
+        </Button>
       </header>
 
-      <section className="mb-8">
-        <h2 className="mb-3 text-lg font-semibold text-[var(--color-fg)]">
-          {t('services.settings')}
-        </h2>
-        <div className="space-y-4">
-          <LanguageSettings />
-          <CommissionSettings />
-        </div>
-      </section>
-
       <section>
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-[var(--color-fg)]">
-            {t('services.title')}
-          </h2>
-          <Button type="button" variant="secondary" size="sm" onClick={openAdd}>
-            <Plus size={16} aria-hidden="true" />
-            {t('services.add')}
-          </Button>
-        </div>
-
         {servicesQuery.isLoading ? (
           <div
             role="status"
@@ -330,7 +198,7 @@ export default function ServicesPage() {
                       )}
                     </div>
                     <div className="text-sm tabular-nums text-[var(--color-fg-muted)]">
-                      {formatPrice(service.price, currency)}
+                      {formatPrice(service.price, currency, locale)}
                     </div>
                   </div>
                   <Switch
