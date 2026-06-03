@@ -82,6 +82,19 @@ function appointmentTotal(appointment: AppointmentWithEntries): number {
   return earned + appointment.tip
 }
 
+/** Sum of service earnings (amount_earned) across appointments — excludes tips. */
+export function sumEarned(appointments: AppointmentWithEntries[]): number {
+  return appointments.reduce(
+    (sum, a) => sum + a.entries.reduce((s, e) => s + e.amount_earned, 0),
+    0,
+  )
+}
+
+/** Sum of tips across appointments. */
+export function sumTips(appointments: AppointmentWithEntries[]): number {
+  return appointments.reduce((sum, a) => sum + a.tip, 0)
+}
+
 /**
  * Parse a date-only `provided_on` string (YYYY-MM-DD) into a local Date.
  * Mirrors the parsing used elsewhere so days never shift across the UTC line.

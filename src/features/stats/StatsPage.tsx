@@ -28,6 +28,8 @@ import {
   groupByRange,
   groupByService,
   groupByWindow,
+  sumEarned,
+  sumTips,
   TIPS_SLICE_NAME,
   type Range,
   type ServiceTotal,
@@ -133,6 +135,10 @@ export default function StatsPage() {
     () => bucketData.reduce((sum, b) => sum + b.count, 0),
     [bucketData],
   )
+  // Split the take-home total into its service-earnings and tips parts. Derived
+  // from the same `filtered` set, so incomeExclTips + tipsTotal === incomeTotal.
+  const incomeExclTips = useMemo(() => sumEarned(filtered), [filtered])
+  const tipsTotal = useMemo(() => sumTips(filtered), [filtered])
 
   // Clamp the custom window so `from` never exceeds `to` (collapse to one day).
   const setCustomFrom = (from: string) =>
@@ -240,6 +246,22 @@ export default function StatsPage() {
                   </p>
                   <p className="mt-1 break-words text-xl font-bold leading-tight text-[var(--color-fg)] tabular-nums">
                     {customerCount}
+                  </p>
+                </Card>
+                <Card className="min-w-0">
+                  <p className="text-sm text-[var(--color-fg-muted)]">
+                    {t('stats.totalIncomeExclTips')}
+                  </p>
+                  <p className="mt-1 break-words text-xl font-bold leading-tight text-[var(--color-fg)] tabular-nums">
+                    {formatPrice(incomeExclTips, currency)}
+                  </p>
+                </Card>
+                <Card className="min-w-0">
+                  <p className="text-sm text-[var(--color-fg-muted)]">
+                    {t('stats.totalTips')}
+                  </p>
+                  <p className="mt-1 break-words text-xl font-bold leading-tight text-[var(--color-fg)] tabular-nums">
+                    {formatPrice(tipsTotal, currency)}
                   </p>
                 </Card>
               </div>
