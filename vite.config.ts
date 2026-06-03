@@ -56,4 +56,29 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // Split large, rarely-changing vendor libraries into their own
+        // long-term-cacheable chunks so a deploy doesn't invalidate everything,
+        // and so heavy deps (recharts) stay isolated from the app shell.
+        manualChunks(id: string) {
+          if (!id.includes('node_modules')) return
+          if (id.includes('recharts')) return 'recharts'
+          if (id.includes('@supabase')) return 'supabase'
+          if (id.includes('@tanstack')) return 'query'
+          if (id.includes('i18next') || id.includes('react-i18next')) {
+            return 'i18n'
+          }
+          if (
+            id.includes('react-router') ||
+            id.includes('/react-dom/') ||
+            id.includes('/react/')
+          ) {
+            return 'react-vendor'
+          }
+        },
+      },
+    },
+  },
 })

@@ -1,20 +1,12 @@
 import { Navigate, Outlet } from 'react-router-dom'
 import { useAuth } from '@/features/auth/useAuth'
-import { Spinner } from '@/components/ui/Spinner'
+import { RouteFallback } from '@/components/ui/RouteFallback'
 
 export function ProtectedRoute() {
   const { session, initializing } = useAuth()
 
   if (initializing) {
-    return (
-      <div
-        role="status"
-        aria-label="Loading"
-        className="flex min-h-dvh items-center justify-center bg-[var(--color-bg)] text-[var(--color-fg-muted)]"
-      >
-        <Spinner />
-      </div>
-    )
+    return <RouteFallback />
   }
 
   if (!session) return <Navigate to="/sign-in" replace />
