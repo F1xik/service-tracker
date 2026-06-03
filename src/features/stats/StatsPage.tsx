@@ -168,7 +168,7 @@ export default function StatsPage() {
             <div
               role="group"
               aria-label={t('stats.range')}
-              className="flex flex-wrap gap-1 rounded-[var(--radius-md)] bg-[var(--color-surface-muted)] p-1"
+              className="grid grid-cols-3 gap-1 rounded-[var(--radius-md)] bg-[var(--color-surface-muted)] p-1"
             >
               {PRESETS.map((value) => (
                 <Button
@@ -178,7 +178,7 @@ export default function StatsPage() {
                   variant={preset === value ? 'primary' : 'ghost'}
                   aria-pressed={preset === value}
                   onClick={() => setPreset(value)}
-                  className="flex-1"
+                  className="whitespace-nowrap"
                 >
                   {t(`stats.${PRESET_LABEL_KEY[value]}`)}
                 </Button>
@@ -220,19 +220,19 @@ export default function StatsPage() {
           ) : (
             <>
               <div className="grid grid-cols-2 gap-4">
-                <Card>
+                <Card className="min-w-0">
                   <p className="text-sm text-[var(--color-fg-muted)]">
                     {t('stats.totalEarned')}
                   </p>
-                  <p className="mt-1 text-2xl font-bold text-[var(--color-fg)]">
+                  <p className="mt-1 break-words text-xl font-bold leading-tight text-[var(--color-fg)] tabular-nums">
                     {formatPrice(incomeTotal, currency)}
                   </p>
                 </Card>
-                <Card>
+                <Card className="min-w-0">
                   <p className="text-sm text-[var(--color-fg-muted)]">
                     {t('stats.totalCustomers')}
                   </p>
-                  <p className="mt-1 text-2xl font-bold text-[var(--color-fg)]">
+                  <p className="mt-1 break-words text-xl font-bold leading-tight text-[var(--color-fg)] tabular-nums">
                     {customerCount}
                   </p>
                 </Card>
