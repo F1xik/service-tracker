@@ -41,7 +41,7 @@ function localToday(): string {
 }
 
 const selectClassName = [
-  'h-11 w-full rounded-[var(--radius-md)] border px-3 text-sm text-[var(--color-fg)]',
+  'h-11 w-full rounded-[var(--radius-md)] border px-3 text-base text-[var(--color-fg)]',
   'bg-[var(--color-surface)] outline-none transition-colors duration-[var(--duration-fast)]',
   'focus-visible:ring-2 focus-visible:ring-[var(--color-ring)] focus-visible:ring-offset-0',
   'border-[var(--color-border-strong)] hover:border-[var(--color-fg-muted)]',
@@ -109,6 +109,7 @@ export function EntryForm({
           <Input
             id="provided_on"
             type="date"
+            className="min-w-0 appearance-none"
             error={!!errors.provided_on}
             aria-describedby={errors.provided_on ? 'provided_on-error' : undefined}
             {...register('provided_on')}
