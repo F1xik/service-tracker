@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { RouterProvider } from 'react-router-dom'
 
 import { AuthProvider } from '@/features/auth/AuthContext'
+import { ThemeProvider } from '@/features/settings/ThemeContext'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { router } from '@/routes/router'
 
@@ -22,7 +23,9 @@ export default function App() {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <RouterProvider router={router} />
+          <ThemeProvider>
+            <RouterProvider router={router} />
+          </ThemeProvider>
         </AuthProvider>
       </QueryClientProvider>
     </ErrorBoundary>

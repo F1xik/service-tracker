@@ -12,6 +12,14 @@
   "settings": {
     "title": "Settings",
     "language": "Language",
+    "theme": "Color theme",
+    "themes": {
+      "light": "Light",
+      "dark": "Dark",
+      "pastelPink": "Pastel pink",
+      "pastelTiffany": "Pastel Tiffany",
+      "pastelViolet": "Pastel violet"
+    },
     "commissionLabel": "Commission %",
     "commissionInfo": "Applies to new entries only. Past entries keep their saved snapshot.",
     "saveCommissionError": "Could not save commission."
