@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import { computeEarnings, type Appointment, type IncomeEntry } from '@/lib/calc'
+import { shiftDays } from '@/lib/date'
 
 /** A single service line within an appointment: the service plus its (editable) price. */
 export interface EntryLineInput {
@@ -62,48 +63,128 @@ export async function createAppointment(
 
 const APPOINTMENT_SELECT = '*, entries:income_entries(*, service:services(name))'
 
-/** One page of appointments plus the exact total for the requested window. */
-export interface AppointmentsPage {
+/**
+ * Target batch size for "load more". We fetch this many rows plus one to detect
+ * whether the window is exhausted; the page is then trimmed back to whole days
+ * (see `getAppointmentsDayPage`), so the actual row count returned per page
+ * varies but never splits a day across the page boundary.
+ */
+export const DAY_FETCH_SIZE = 20
+
+/**
+ * One page of appointments — always whole days — plus a cursor for the next
+ * page.
+ */
+export interface AppointmentsDayPage {
+  /** Appointments for complete days only (a day is never split across pages). */
   rows: AppointmentWithEntries[]
-  count: number
+  /**
+   * Upper `provided_on` bound (YYYY-MM-DD, inclusive) for the next page, or
+   * `null` when the window is fully loaded.
+   */
+  nextCursor: string | null
 }
 
-export interface GetAppointmentsPageParams {
+export interface GetAppointmentsDayPageParams {
   /** Inclusive lower bound on `provided_on` (YYYY-MM-DD); omit for no lower bound. */
   from?: string
   /** Inclusive upper bound on `provided_on` (YYYY-MM-DD); omit for no upper bound. */
   to?: string
-  offset?: number
-  limit?: number
+  /**
+   * Inclusive upper bound for this page, set from the previous page's
+   * `nextCursor`. Omit for the first page (defaults to `to`).
+   */
+  before?: string
 }
 
 /**
- * Fetch one page of appointments within an optional `provided_on` date window,
- * newest first, with their line items and an exact total count for the window.
+ * Fetch one page of appointments within an optional `provided_on` window,
+ * newest first, paginated by **whole day** so a day's appointments are never
+ * split across pages. This keeps each day's client-computed total correct on
+ * first render — the total never jumps when "load more" pulls in the rest of a
+ * partially-loaded day.
  *
- * Filtering is on `provided_on` — the user-facing service date, which is
- * indexed — so it stays cheap as history grows. `offset`/`limit` drive the
- * "load more" pagination; `count` lets the caller know when to stop. RLS scopes
- * rows to the logged-in user, so no explicit `user_id` filter is required.
+ * We over-fetch `DAY_FETCH_SIZE + 1` rows and trim the oldest date in the batch,
+ * which the row limit may have cut off, handing it to the next page via
+ * `nextCursor`. Filtering is on the indexed `provided_on`, and RLS scopes rows
+ * to the logged-in user, so no explicit `user_id` filter is required.
  */
-export async function getAppointmentsPage({
+export async function getAppointmentsDayPage({
   from,
   to,
-  offset = 0,
-  limit = 20,
-}: GetAppointmentsPageParams = {}): Promise<AppointmentsPage> {
+  before,
+}: GetAppointmentsDayPageParams = {}): Promise<AppointmentsDayPage> {
+  const upper = before ?? to
+
   let query = supabase
     .from('appointments')
-    .select(APPOINTMENT_SELECT, { count: 'exact' })
+    .select(APPOINTMENT_SELECT)
     .order('provided_on', { ascending: false })
     .order('created_at', { ascending: false })
 
   if (from) query = query.gte('provided_on', from)
+  if (upper) query = query.lte('provided_on', upper)
+
+  const { data, error } = await query.limit(DAY_FETCH_SIZE + 1)
+  if (error) throw error
+
+  const rows = (data as AppointmentWithEntries[] | null) ?? []
+
+  // Fewer rows than the over-fetch limit means we reached the start of the
+  // window: every day in the batch is complete, so there is nothing more.
+  if (rows.length <= DAY_FETCH_SIZE) {
+    return { rows, nextCursor: null }
+  }
+
+  // The oldest date in the batch may have been cut off by the limit. Drop it and
+  // let the next page re-fetch it in full.
+  const lastDate = rows[rows.length - 1]!.provided_on
+  const complete = rows.filter((row) => row.provided_on !== lastDate)
+
+  if (complete.length > 0) {
+    return { rows: complete, nextCursor: lastDate }
+  }
+
+  // Pathological case: a single day has more than `DAY_FETCH_SIZE` appointments,
+  // so trimming left nothing. Fetch that whole day on its own so we still make
+  // progress, and point the next page strictly before it.
+  let dayQuery = supabase
+    .from('appointments')
+    .select(APPOINTMENT_SELECT)
+    .eq('provided_on', lastDate)
+    .order('created_at', { ascending: false })
+  if (from) dayQuery = dayQuery.gte('provided_on', from)
+
+  const { data: dayData, error: dayError } = await dayQuery
+  if (dayError) throw dayError
+
+  return {
+    rows: (dayData as AppointmentWithEntries[] | null) ?? [],
+    nextCursor: from && lastDate <= from ? null : shiftDays(lastDate, -1),
+  }
+}
+
+/**
+ * Count the distinct service days (`provided_on`) in a window, for the
+ * "showing X of Y" footer. Pagination is by day, so the footer counts days, not
+ * appointments. Selects only the date column (no joins); RLS scopes rows to the
+ * logged-in user.
+ */
+export async function getAppointmentDayCount({
+  from,
+  to,
+}: { from?: string; to?: string } = {}): Promise<number> {
+  let query = supabase.from('appointments').select('provided_on')
+  if (from) query = query.gte('provided_on', from)
   if (to) query = query.lte('provided_on', to)
 
-  const { data, error, count } = await query.range(offset, offset + limit - 1)
+  const { data, error } = await query
   if (error) throw error
-  return { rows: (data as AppointmentWithEntries[] | null) ?? [], count: count ?? 0 }
+
+  const days = new Set(
+    (data as { provided_on: string }[] | null)?.map((r) => r.provided_on),
+  )
+  return days.size
 }
 
 /**
