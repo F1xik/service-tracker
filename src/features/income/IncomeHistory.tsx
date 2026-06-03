@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Trash2 } from 'lucide-react'
+import { StickyNote, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { formatPrice } from '@/lib/format'
@@ -50,6 +50,11 @@ interface IncomeHistoryProps {
 export function IncomeHistory({ currency }: IncomeHistoryProps) {
   const { t } = useTranslation()
   const [filter, setFilter] = useState<Filter>(defaultFilter)
+  // Notes are collapsed by default; this holds the ids of appointments whose
+  // note the user has expanded inline.
+  const [expandedNotes, setExpandedNotes] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  )
   const historyQuery = useInfiniteAppointments(filter.range)
   const dayCountQuery = useAppointmentDayCount(filter.range)
   const deleteAppointment = useDeleteAppointment()
@@ -57,6 +62,15 @@ export function IncomeHistory({ currency }: IncomeHistoryProps) {
   function handleDelete(id: string) {
     if (!window.confirm(t('income.deleteConfirm'))) return
     deleteAppointment.mutate(id)
+  }
+
+  function toggleNote(id: string) {
+    setExpandedNotes((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
   }
 
   const appointments = historyQuery.data?.pages.flatMap((page) => page.rows) ?? []
@@ -112,50 +126,87 @@ export function IncomeHistory({ currency }: IncomeHistoryProps) {
                     </span>
                   </div>
                   <ul className="divide-y divide-[var(--color-border)]">
-                    {group.appointments.map((appointment) => (
-                      <li key={appointment.id} className="px-4 py-3">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0 break-words text-sm font-medium text-[var(--color-fg)]">
-                            {appointment.customer ?? ''}
+                    {group.appointments.map((appointment) => {
+                      const note = appointment.note?.trim()
+                      const noteExpanded = expandedNotes.has(appointment.id)
+                      return (
+                        <li key={appointment.id} className="px-4 py-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 break-words text-sm font-medium text-[var(--color-fg)]">
+                              {appointment.customer ?? ''}
+                            </div>
+                            <div className="flex shrink-0 items-center gap-1">
+                              {note && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  aria-label={
+                                    noteExpanded
+                                      ? t('income.hideNote')
+                                      : t('income.showNote')
+                                  }
+                                  aria-expanded={noteExpanded}
+                                  aria-controls={`note-${appointment.id}`}
+                                  onClick={() => toggleNote(appointment.id)}
+                                >
+                                  <StickyNote size={18} aria-hidden="true" />
+                                </Button>
+                              )}
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                aria-label={t('income.deleteEntry')}
+                                onClick={() => handleDelete(appointment.id)}
+                              >
+                                <Trash2 size={18} aria-hidden="true" />
+                              </Button>
+                            </div>
                           </div>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="shrink-0"
-                            aria-label={t('income.deleteEntry')}
-                            onClick={() => handleDelete(appointment.id)}
-                          >
-                            <Trash2 size={18} aria-hidden="true" />
-                          </Button>
-                        </div>
-                        <ul className="mt-1 space-y-0.5">
-                          {appointment.entries.map((entry) => (
-                            <li
-                              key={entry.id}
-                              className="flex justify-between gap-3 text-sm"
+                          {note && noteExpanded && (
+                            <div
+                              id={`note-${appointment.id}`}
+                              className="mt-2 flex items-start gap-2 rounded-[var(--radius-md)] bg-[var(--color-surface-muted)] px-3 py-2"
                             >
-                              <span className="line-clamp-2 min-w-0 break-words text-[var(--color-fg-muted)]">
-                                {entry.service?.name ?? t('income.serviceFallback')}
-                              </span>
-                              <span className="shrink-0 tabular-nums text-[var(--color-fg-muted)]">
-                                {formatPrice(entry.amount_earned, currency)}
-                              </span>
-                            </li>
-                          ))}
-                          {appointment.tip > 0 && (
-                            <li className="flex justify-between gap-3 text-sm">
-                              <span className="line-clamp-2 min-w-0 break-words text-[var(--color-fg-muted)]">
-                                {t('income.tip')}
-                              </span>
-                              <span className="shrink-0 tabular-nums text-[var(--color-fg-muted)]">
-                                {formatPrice(appointment.tip, currency)}
-                              </span>
-                            </li>
+                              <StickyNote
+                                size={14}
+                                aria-hidden="true"
+                                className="mt-0.5 shrink-0 text-[var(--color-fg-subtle)]"
+                              />
+                              <p className="min-w-0 whitespace-pre-wrap break-words text-sm text-[var(--color-fg-muted)]">
+                                {note}
+                              </p>
+                            </div>
                           )}
-                        </ul>
-                      </li>
-                    ))}
+                          <ul className="mt-1 space-y-0.5">
+                            {appointment.entries.map((entry) => (
+                              <li
+                                key={entry.id}
+                                className="flex justify-between gap-3 text-sm"
+                              >
+                                <span className="line-clamp-2 min-w-0 break-words text-[var(--color-fg-muted)]">
+                                  {entry.service?.name ?? t('income.serviceFallback')}
+                                </span>
+                                <span className="shrink-0 tabular-nums text-[var(--color-fg-muted)]">
+                                  {formatPrice(entry.amount_earned, currency)}
+                                </span>
+                              </li>
+                            ))}
+                            {appointment.tip > 0 && (
+                              <li className="flex justify-between gap-3 text-sm">
+                                <span className="line-clamp-2 min-w-0 break-words text-[var(--color-fg-muted)]">
+                                  {t('income.tip')}
+                                </span>
+                                <span className="shrink-0 tabular-nums text-[var(--color-fg-muted)]">
+                                  {formatPrice(appointment.tip, currency)}
+                                </span>
+                              </li>
+                            )}
+                          </ul>
+                        </li>
+                      )
+                    })}
                   </ul>
                 </li>
               ))}
