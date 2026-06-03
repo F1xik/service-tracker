@@ -13,6 +13,8 @@ import {
   groupByWindow,
   pickGranularity,
   rangeBounds,
+  sumEarned,
+  sumTips,
 } from './aggregations'
 
 // Reference "now": Monday 2026-06-15 (so the week window is Jun 15–21).
@@ -283,6 +285,46 @@ describe('groupByService', () => {
       }),
     ])
     expect(result).toEqual([{ name: 'Haircut', total: 10 }])
+  })
+})
+
+describe('sumEarned / sumTips', () => {
+  it('sumEarned adds every line item and ignores tips', () => {
+    const result = sumEarned([
+      appt({
+        entries: [line({ amount_earned: 10 }), line({ amount_earned: 20 })],
+        tip: 99,
+      }),
+      appt({ entries: [line({ amount_earned: 5 })], tip: 7 }),
+    ])
+    expect(result).toBe(35)
+  })
+
+  it('sumTips adds every appointment tip and ignores line items', () => {
+    const result = sumTips([
+      appt({ entries: [line({ amount_earned: 10 })], tip: 3 }),
+      appt({ entries: [line({ amount_earned: 10 })], tip: 0 }),
+      appt({ entries: [line({ amount_earned: 10 })], tip: 4 }),
+    ])
+    expect(result).toBe(7)
+  })
+
+  it('both return 0 for empty input', () => {
+    expect(sumEarned([])).toBe(0)
+    expect(sumTips([])).toBe(0)
+  })
+
+  it('sumEarned + sumTips equals the combined take-home total', () => {
+    const data = [
+      appt({
+        entries: [line({ amount_earned: 10 }), line({ amount_earned: 20 })],
+        tip: 3,
+      }),
+      appt({ entries: [line({ amount_earned: 5 })], tip: 2 }),
+    ]
+    // groupByService sums the same earnings + tips, so its grand total must match.
+    const takeHome = groupByService(data).reduce((sum, s) => sum + s.total, 0)
+    expect(sumEarned(data) + sumTips(data)).toBe(takeHome)
   })
 })
 

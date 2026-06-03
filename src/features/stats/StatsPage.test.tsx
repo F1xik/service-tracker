@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { AppointmentWithEntries } from '@/features/income/api'
+import { formatPrice } from '@/lib/format'
 
 const state = vi.hoisted(() => ({
   stats: {
@@ -146,6 +147,22 @@ describe('StatsPage', () => {
     expect(screen.getByText(/Haircut · .* · \d+%/)).toBeInTheDocument()
     // Tips accumulate into their own translated slice.
     expect(screen.getByText(/Tips · .* · \d+%/)).toBeInTheDocument()
+  })
+
+  it('splits take-home into earned, income-excl-tips and tips boxes', () => {
+    state.stats.data = [
+      entry({ provided_on: '2026-06-15', amount_earned: 30, tip: 10 }),
+      entry({ provided_on: '2026-06-15', amount_earned: 20, tip: 5 }),
+    ]
+    render(<StatsPage />)
+    // The label <p> and value <p> share the same Card <div> wrapper.
+    const box = (label: RegExp) => screen.getByText(label).closest('div') as HTMLElement
+    // toHaveTextContent collapses the currency's non-breaking space, so match it.
+    const money = (n: number) => formatPrice(n, 'PLN').replace(/\u00a0/g, ' ')
+    // earned (incl. tips) = 50 + 15; income excl. tips = 50; tips = 15.
+    expect(box(/total earned/i)).toHaveTextContent(money(65))
+    expect(box(/income \(excl\. tips\)/i)).toHaveTextContent(money(50))
+    expect(box(/total tips/i)).toHaveTextContent(money(15))
   })
 
   it('shows a window message when no entries fall in the selected range', async () => {
