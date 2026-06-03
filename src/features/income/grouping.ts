@@ -2,7 +2,7 @@
  * Group income appointments by their service date for the history list.
  *
  * React-free so it stays unit-testable in isolation. The input is expected to
- * be pre-sorted by `provided_on` DESC (as `getAppointmentsPage` returns it), so
+ * be pre-sorted by `provided_on` DESC (as `getAppointmentsDayPage` returns it), so
  * groups come out newest-day-first; we still key by date and preserve first-seen
  * order to stay correct regardless of ordering.
  */

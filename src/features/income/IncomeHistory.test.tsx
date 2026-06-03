@@ -180,6 +180,34 @@ describe('IncomeHistory', () => {
     )
   })
 
+  it('keeps each day total complete across pages (no partial-day recalculation)', () => {
+    // Pages are cut on whole-day boundaries, so a day never spans two pages:
+    // page 1 holds all of Jun 2, page 2 all of Jun 1. Each day total is final
+    // the moment its day is rendered.
+    state.history.data = {
+      pages: [
+        {
+          rows: [
+            appointment({ id: 'a1', provided_on: '2026-06-02', tip: 4 }), // 10
+            appointment({ id: 'a2', provided_on: '2026-06-02', tip: 0 }), // 6
+          ],
+          count: 3,
+        },
+        {
+          rows: [appointment({ id: 'a3', provided_on: '2026-06-01', tip: 0 })], // 6
+          count: 3,
+        },
+      ],
+    }
+    render(<IncomeHistory currency="USD" />)
+
+    const list = screen.getAllByRole('list')[0]
+    // Jun 2 totals both of its appointments (10 + 6 = $16.00); Jun 1 reads $6.00.
+    expect(within(list).getByText('$16.00')).toBeInTheDocument()
+    expect(within(list).getAllByText(/Mon, Jun 1, 2026/)).toHaveLength(1)
+    expect(screen.getByText('Showing 3 of 3')).toBeInTheDocument()
+  })
+
   it('shows the tip line and a take-home that includes it', () => {
     setPages([appointment({ tip: 4 })])
     render(<IncomeHistory currency="USD" />)
