@@ -41,23 +41,40 @@ export interface ServiceTotal {
   total: number
 }
 
-const MONTH_NAMES = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
-]
+/** Default locale; keeps labels English when a caller doesn't pass one. */
+const DEFAULT_LOCALE = 'en'
 
-// Monday-first weekday labels, aligned with a Monday-start week window.
-const WEEKDAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+const capitalize = (s: string): string =>
+  s ? s.charAt(0).toUpperCase() + s.slice(1) : s
+
+// Build short date-part names from the active locale via Intl, so axis/tooltip
+// labels follow the UI language. Names are capitalized and any trailing
+// abbreviation period dropped for compact, consistent labels. The base English
+// locale yields "Jan".."Dec" / "Mon".."Sun" / "Today", so callers that omit a
+// locale keep the original English labels and the pure-function tests stay
+// deterministic.
+const shortName = (fmt: Intl.DateTimeFormat, date: Date): string =>
+  capitalize(fmt.format(date).replace(/\.$/, ''))
+
+/** Localized short month names, indexed Jan(0)..Dec(11). */
+function monthNames(locale: string): string[] {
+  const fmt = new Intl.DateTimeFormat(locale, { month: 'short' })
+  return Array.from({ length: 12 }, (_, m) => shortName(fmt, new Date(2021, m, 1)))
+}
+
+/** Localized Monday-first short weekday names, indexed Mon(0)..Sun(6). */
+function weekdayNames(locale: string): string[] {
+  // 2021-03-01 is a Monday, so offsets 0..6 walk Mon..Sun.
+  const fmt = new Intl.DateTimeFormat(locale, { weekday: 'short' })
+  return Array.from({ length: 7 }, (_, i) => shortName(fmt, new Date(2021, 2, 1 + i)))
+}
+
+/** Localized word for "today" (e.g. "Today" / "Сегодня"). */
+function todayName(locale: string): string {
+  return capitalize(
+    new Intl.RelativeTimeFormat(locale, { numeric: 'auto' }).format(0, 'day'),
+  )
+}
 
 /** Sum of a single appointment's earned line items plus its tip. */
 function appointmentTotal(appointment: AppointmentWithEntries): number {
@@ -137,6 +154,7 @@ export function groupByRange(
   appointments: AppointmentWithEntries[],
   range: Range,
   now: Date = new Date(),
+  locale: string = DEFAULT_LOCALE,
 ): RangeBucket[] {
   const { start } = rangeBounds(range, now)
   const buckets: RangeBucket[] = []
@@ -148,12 +166,13 @@ export function groupByRange(
   }
 
   if (range === 'today') {
-    seed(bucketKey(start, range), 'Today')
+    seed(bucketKey(start, range), todayName(locale))
   } else if (range === 'week') {
+    const names = weekdayNames(locale)
     for (let i = 0; i < 7; i++) {
       const d = new Date(start)
       d.setDate(d.getDate() + i)
-      seed(bucketKey(d, range), WEEKDAY_NAMES[i])
+      seed(bucketKey(d, range), names[i])
     }
   } else if (range === 'month') {
     const daysInMonth = new Date(start.getFullYear(), start.getMonth() + 1, 0).getDate()
@@ -162,9 +181,10 @@ export function groupByRange(
       seed(bucketKey(d, range), String(day))
     }
   } else {
+    const names = monthNames(locale)
     for (let m = 0; m < 12; m++) {
       const d = new Date(start.getFullYear(), m, 1)
-      seed(bucketKey(d, range), MONTH_NAMES[m])
+      seed(bucketKey(d, range), names[m])
     }
   }
 
@@ -308,6 +328,7 @@ function bucketDates(window: Window): Date[] {
 export function groupByWindow(
   appointments: AppointmentWithEntries[],
   window: Window,
+  locale: string = DEFAULT_LOCALE,
 ): RangeBucket[] {
   const { granularity } = window
   const dates = bucketDates(window)
@@ -320,10 +341,11 @@ export function groupByWindow(
     (first.getFullYear() !== last.getFullYear() || first.getMonth() !== last.getMonth())
   const crossesYear = !!first && !!last && first.getFullYear() !== last.getFullYear()
 
+  const months = granularity === 'month' ? monthNames(locale) : []
   const label = (date: Date): string => {
     if (granularity === 'year') return `${date.getFullYear()}`
     if (granularity === 'month') {
-      const name = MONTH_NAMES[date.getMonth()]
+      const name = months[date.getMonth()]
       return crossesYear ? `${name} '${String(date.getFullYear()).slice(-2)}` : name
     }
     return crossesMonth
