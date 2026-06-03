@@ -16,12 +16,17 @@ import { formatPrice } from '@/lib/format'
 import { Alert } from '@/components/ui/Alert'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
+import { Field } from '@/components/ui/Field'
+import { Input } from '@/components/ui/Input'
 import { Spinner } from '@/components/ui/Spinner'
 
 import {
+  customWindow,
   filterToRange,
+  filterToWindow,
   groupByRange,
   groupByService,
+  groupByWindow,
   TIPS_SLICE_NAME,
   type Range,
   type ServiceTotal,
@@ -31,7 +36,20 @@ import { useStats } from './useStats'
 
 const DEFAULT_CURRENCY = 'PLN'
 
-const RANGE_VALUES: Range[] = ['today', 'week', 'month', 'year']
+/** The four fixed presets plus the date-range-driven "all time" and "period". */
+type StatsPreset = Range | 'all' | 'custom'
+
+const PRESETS: StatsPreset[] = ['today', 'week', 'month', 'year', 'all', 'custom']
+
+// Translation key under `stats.*` for each preset's toggle label.
+const PRESET_LABEL_KEY: Record<StatsPreset, string> = {
+  today: 'today',
+  week: 'week',
+  month: 'month',
+  year: 'year',
+  all: 'allTime',
+  custom: 'period',
+}
 
 const INCOME_COLOR = 'var(--color-primary)'
 const INCOME_ACTIVE_COLOR = 'var(--color-primary-hover)'
@@ -66,18 +84,55 @@ export default function StatsPage() {
   const { t } = useTranslation()
   const statsQuery = useStats()
   const profileQuery = useProfile()
-  const [range, setRange] = useState<Range>('month')
+  const [preset, setPreset] = useState<StatsPreset>('month')
+  const [customRange, setCustomRange] = useState({ from: '', to: '' })
 
   const currency = profileQuery.data?.currency ?? DEFAULT_CURRENCY
   const entries = useMemo(() => statsQuery.data ?? [], [statsQuery.data])
 
-  const filtered = useMemo(() => filterToRange(entries, range), [entries, range])
-  const bucketData = useMemo(() => groupByRange(entries, range), [entries, range])
+  // The fixed presets keep their original windowed path; "all time" and "period"
+  // resolve to a date-range window with auto-chosen bucketing.
+  const isWindow = preset === 'all' || preset === 'custom'
+  const window = useMemo(
+    () =>
+      customWindow(
+        entries,
+        preset === 'all' ? '' : customRange.from,
+        preset === 'all' ? '' : customRange.to,
+      ),
+    [entries, preset, customRange],
+  )
+
+  const filtered = useMemo(
+    () => (isWindow ? filterToWindow(entries, window) : filterToRange(entries, preset)),
+    [entries, isWindow, window, preset],
+  )
+  const bucketData = useMemo(
+    () => (isWindow ? groupByWindow(entries, window) : groupByRange(entries, preset)),
+    [entries, isWindow, window, preset],
+  )
   const serviceData = useMemo(() => groupByService(filtered), [filtered])
   const serviceTotal = useMemo(
     () => serviceData.reduce((sum, s) => sum + s.total, 0),
     [serviceData],
   )
+
+  // Headline totals for the selected filter, derived from the bars so the
+  // numbers always match the charts below.
+  const incomeTotal = useMemo(
+    () => bucketData.reduce((sum, b) => sum + b.total, 0),
+    [bucketData],
+  )
+  const customerCount = useMemo(
+    () => bucketData.reduce((sum, b) => sum + b.count, 0),
+    [bucketData],
+  )
+
+  // Clamp the custom window so `from` never exceeds `to` (collapse to one day).
+  const setCustomFrom = (from: string) =>
+    setCustomRange((r) => ({ from, to: r.to && from > r.to ? from : r.to }))
+  const setCustomTo = (to: string) =>
+    setCustomRange((r) => ({ from: to && r.from > to ? to : r.from, to }))
 
   return (
     <div className="mx-auto w-full max-w-2xl px-4 py-6">
@@ -109,24 +164,51 @@ export default function StatsPage() {
         </Card>
       ) : (
         <div className="space-y-8">
-          <div
-            role="group"
-            aria-label={t('stats.range')}
-            className="flex gap-1 rounded-[var(--radius-md)] bg-[var(--color-surface-muted)] p-1"
-          >
-            {RANGE_VALUES.map((value) => (
-              <Button
-                key={value}
-                type="button"
-                size="sm"
-                fullWidth
-                variant={range === value ? 'primary' : 'ghost'}
-                aria-pressed={range === value}
-                onClick={() => setRange(value)}
-              >
-                {t(`stats.${value}`)}
-              </Button>
-            ))}
+          <div className="space-y-3">
+            <div
+              role="group"
+              aria-label={t('stats.range')}
+              className="grid grid-cols-3 gap-1 rounded-[var(--radius-md)] bg-[var(--color-surface-muted)] p-1"
+            >
+              {PRESETS.map((value) => (
+                <Button
+                  key={value}
+                  type="button"
+                  size="sm"
+                  variant={preset === value ? 'primary' : 'ghost'}
+                  aria-pressed={preset === value}
+                  onClick={() => setPreset(value)}
+                  className="whitespace-nowrap"
+                >
+                  {t(`stats.${PRESET_LABEL_KEY[value]}`)}
+                </Button>
+              ))}
+            </div>
+
+            {preset === 'custom' && (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <Field id="stats-from" label={t('stats.from')}>
+                  <Input
+                    id="stats-from"
+                    type="date"
+                    className="min-w-0 appearance-none"
+                    value={customRange.from}
+                    max={customRange.to || undefined}
+                    onChange={(event) => setCustomFrom(event.target.value)}
+                  />
+                </Field>
+                <Field id="stats-to" label={t('stats.to')}>
+                  <Input
+                    id="stats-to"
+                    type="date"
+                    className="min-w-0 appearance-none"
+                    value={customRange.to}
+                    min={customRange.from || undefined}
+                    onChange={(event) => setCustomTo(event.target.value)}
+                  />
+                </Field>
+              </div>
+            )}
           </div>
 
           {filtered.length === 0 ? (
@@ -137,6 +219,25 @@ export default function StatsPage() {
             </Card>
           ) : (
             <>
+              <div className="grid grid-cols-2 gap-4">
+                <Card className="min-w-0">
+                  <p className="text-sm text-[var(--color-fg-muted)]">
+                    {t('stats.totalEarned')}
+                  </p>
+                  <p className="mt-1 break-words text-xl font-bold leading-tight text-[var(--color-fg)] tabular-nums">
+                    {formatPrice(incomeTotal, currency)}
+                  </p>
+                </Card>
+                <Card className="min-w-0">
+                  <p className="text-sm text-[var(--color-fg-muted)]">
+                    {t('stats.totalCustomers')}
+                  </p>
+                  <p className="mt-1 break-words text-xl font-bold leading-tight text-[var(--color-fg)] tabular-nums">
+                    {customerCount}
+                  </p>
+                </Card>
+              </div>
+
               <section>
                 <h2 className="mb-3 text-lg font-semibold text-[var(--color-fg)]">
                   {t('stats.income')}

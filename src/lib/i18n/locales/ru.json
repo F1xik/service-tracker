@@ -114,7 +114,13 @@
     "earned": "Заработано",
     "customers": "Клиенты",
     "incomeByService": "Доход по услугам",
-    "tips": "Чаевые"
+    "tips": "Чаевые",
+    "allTime": "Всё время",
+    "period": "Период",
+    "from": "С",
+    "to": "По",
+    "totalEarned": "Всего заработано",
+    "totalCustomers": "Всего клиентов"
   },
   "validation": {
     "emailInvalid": "Введите корректный адрес эл. почты",
