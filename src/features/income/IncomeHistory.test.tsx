@@ -84,13 +84,50 @@ beforeEach(() => {
 })
 
 describe('IncomeHistory', () => {
-  it('renders the "Income history" heading and defaults to a 7-day window', () => {
+  it('defaults to the "Last 7 days" preset with the date inputs hidden', () => {
     render(<IncomeHistory currency="USD" />)
 
     expect(screen.getByRole('heading', { name: 'Income history' })).toBeInTheDocument()
+    // The active preset is highlighted; the From/To inputs stay hidden.
+    expect(screen.getByRole('button', { name: 'Last 7 days' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    expect(screen.queryByLabelText('From')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('To')).not.toBeInTheDocument()
+  })
+
+  it('reveals the date inputs, prefilled to the current window, on "Custom"', async () => {
+    const user = userEvent.setup()
+    render(<IncomeHistory currency="USD" />)
+
+    await user.click(screen.getByRole('button', { name: 'Custom' }))
+
     const today = todayLocal()
     expect(screen.getByLabelText('From')).toHaveValue(shiftDays(today, -6))
     expect(screen.getByLabelText('To')).toHaveValue(today)
+    expect(screen.getByRole('button', { name: 'Custom' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+  })
+
+  it('switches the active preset when another quick filter is chosen', async () => {
+    const user = userEvent.setup()
+    render(<IncomeHistory currency="USD" />)
+
+    await user.click(screen.getByRole('button', { name: 'All time' }))
+
+    expect(screen.getByRole('button', { name: 'All time' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    expect(screen.getByRole('button', { name: 'Last 7 days' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    )
+    // Inputs remain hidden for a non-custom preset.
+    expect(screen.queryByLabelText('From')).not.toBeInTheDocument()
   })
 
   it('renders an appointment with its service lines', () => {

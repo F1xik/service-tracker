@@ -41,6 +41,7 @@
     "last30Days": "Last 30 days",
     "thisMonth": "This month",
     "allTime": "All time",
+    "custom": "Custom",
     "loadMore": "Load more",
     "showingCount": "Showing {{shown}} of {{total}}",
     "noEntriesInRange": "No income in this date range.",

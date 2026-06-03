@@ -41,6 +41,7 @@
     "last30Days": "Последние 30 дней",
     "thisMonth": "Этот месяц",
     "allTime": "Всё время",
+    "custom": "Период",
     "loadMore": "Показать ещё",
     "showingCount": "Показано {{shown}} из {{total}}",
     "noEntriesInRange": "Нет дохода за выбранный период.",

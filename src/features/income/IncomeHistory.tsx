@@ -11,7 +11,7 @@ import { Card } from '@/components/ui/Card'
 import { Alert } from '@/components/ui/Alert'
 import { Spinner } from '@/components/ui/Spinner'
 
-import { DateRangePicker, type DateRange } from './DateRangePicker'
+import { DateRangePicker, type DateRange, type PresetId } from './DateRangePicker'
 import { useDeleteAppointment, useInfiniteAppointments } from './useIncome'
 
 function formatDate(value: string): string {
@@ -26,10 +26,15 @@ function formatDate(value: string): string {
   })
 }
 
-/** Default window: the last 7 days, inclusive of today. */
-function defaultRange(): DateRange {
+interface Filter {
+  preset: PresetId
+  range: DateRange
+}
+
+/** Default filter: the "Last 7 days" preset, inclusive of today. */
+function defaultFilter(): Filter {
   const today = todayLocal()
-  return { from: shiftDays(today, -6), to: today }
+  return { preset: 'last7', range: { from: shiftDays(today, -6), to: today } }
 }
 
 interface IncomeHistoryProps {
@@ -38,8 +43,8 @@ interface IncomeHistoryProps {
 
 export function IncomeHistory({ currency }: IncomeHistoryProps) {
   const { t } = useTranslation()
-  const [range, setRange] = useState<DateRange>(defaultRange)
-  const historyQuery = useInfiniteAppointments(range)
+  const [filter, setFilter] = useState<Filter>(defaultFilter)
+  const historyQuery = useInfiniteAppointments(filter.range)
   const deleteAppointment = useDeleteAppointment()
 
   function handleDelete(id: string) {
@@ -57,7 +62,11 @@ export function IncomeHistory({ currency }: IncomeHistoryProps) {
       </h2>
 
       <div className="mb-4">
-        <DateRangePicker value={range} onChange={setRange} />
+        <DateRangePicker
+          value={filter.range}
+          activePreset={filter.preset}
+          onChange={(preset, range) => setFilter({ preset, range })}
+        />
       </div>
 
       {historyQuery.isLoading ? (
