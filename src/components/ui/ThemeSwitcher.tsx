@@ -20,7 +20,7 @@ export function ThemeSwitcher({ className }: ThemeSwitcherProps) {
     <div
       role="radiogroup"
       aria-label={t('settings.theme')}
-      className={`flex flex-wrap gap-3 ${className ?? ''}`}
+      className={`grid grid-cols-2 gap-3 sm:grid-cols-3 ${className ?? ''}`}
     >
       {THEMES.map(({ id, labelKey, swatchClass }) => {
         const label = t(labelKey)
@@ -61,7 +61,7 @@ export function ThemeSwitcher({ className }: ThemeSwitcherProps) {
               <Palette
                 size={16}
                 aria-hidden="true"
-                className="text-[var(--color-primary)]"
+                className="ml-auto text-[var(--color-primary)]"
               />
             )}
           </button>
