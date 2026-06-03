@@ -83,7 +83,8 @@ function serviceLabel(
 }
 
 export default function StatsPage() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const locale = i18n.language
   const statsQuery = useStats()
   const profileQuery = useProfile()
   const [preset, setPreset] = useState<StatsPreset>('month')
@@ -110,8 +111,11 @@ export default function StatsPage() {
     [entries, isWindow, window, preset],
   )
   const bucketData = useMemo(
-    () => (isWindow ? groupByWindow(entries, window) : groupByRange(entries, preset)),
-    [entries, isWindow, window, preset],
+    () =>
+      isWindow
+        ? groupByWindow(entries, window, locale)
+        : groupByRange(entries, preset, undefined, locale),
+    [entries, isWindow, window, preset, locale],
   )
   const serviceData = useMemo(() => groupByService(filtered), [filtered])
   const serviceTotal = useMemo(

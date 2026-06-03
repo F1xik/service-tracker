@@ -212,6 +212,22 @@ describe('groupByRange', () => {
     expect(result).toHaveLength(7)
     expect(result.every((b) => b.total === 0 && b.count === 0)).toBe(true)
   })
+
+  it('localizes weekday, month, and today labels from the locale', () => {
+    expect(groupByRange([], 'week', now, 'ru').map((b) => b.label)).toEqual([
+      'Пн',
+      'Вт',
+      'Ср',
+      'Чт',
+      'Пт',
+      'Сб',
+      'Вс',
+    ])
+    expect(groupByRange([], 'year', now, 'ru')[0].label).toBe('Янв')
+    expect(groupByRange([], 'today', now, 'ru')[0].label).toBe('Сегодня')
+    // Day-number labels carry no locale-specific text.
+    expect(groupByRange([], 'month', now, 'ru')[0].label).toBe('1')
+  })
 })
 
 describe('groupByService', () => {
@@ -385,6 +401,16 @@ describe('groupByWindow', () => {
     ])
     expect(result.map((b) => b.total)).toEqual([0, 10, 6, 0])
     expect(result.map((b) => b.count)).toEqual([0, 1, 1, 0])
+  })
+
+  it("localizes MON 'YY month labels from the locale", () => {
+    const w = customWindow([], '2025-11-01', '2026-02-28', now)
+    expect(groupByWindow([], w, 'ru').map((b) => b.label)).toEqual([
+      "Нояб '25",
+      "Дек '25",
+      "Янв '26",
+      "Февр '26",
+    ])
   })
 
   it('year granularity over a multi-year span uses YYYY labels', () => {
