@@ -1,0 +1,177 @@
+import { render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { shiftDays, todayLocal } from '@/lib/date'
+import type { AppointmentWithEntries } from './api'
+
+const deleteMutate = vi.hoisted(() => vi.fn())
+const fetchNextPage = vi.hoisted(() => vi.fn())
+
+interface HistoryState {
+  isLoading: boolean
+  isError: boolean
+  error: unknown
+  hasNextPage: boolean
+  isFetchingNextPage: boolean
+  data: { pages: { rows: AppointmentWithEntries[]; count: number }[] } | undefined
+}
+
+const state = vi.hoisted(
+  () =>
+    ({
+      history: {
+        isLoading: false,
+        isError: false,
+        error: null,
+        hasNextPage: false,
+        isFetchingNextPage: false,
+        data: { pages: [{ rows: [], count: 0 }] },
+      } as HistoryState,
+    }) as { history: HistoryState },
+)
+
+vi.mock('./useIncome', () => ({
+  useInfiniteAppointments: () => ({ ...state.history, fetchNextPage }),
+  useDeleteAppointment: () => ({ mutate: deleteMutate }),
+}))
+
+import { IncomeHistory } from './IncomeHistory'
+
+function appointment(
+  overrides: Partial<AppointmentWithEntries> = {},
+): AppointmentWithEntries {
+  return {
+    id: 'a1',
+    user_id: 'u1',
+    provided_on: '2026-06-02',
+    customer: null,
+    note: null,
+    tip: 0,
+    source: 'manual',
+    created_at: '2026-06-02T00:00:00Z',
+    entries: [
+      {
+        id: 'e1',
+        user_id: 'u1',
+        appointment_id: 'a1',
+        service_id: 's1',
+        price_snapshot: 40,
+        commission_pct_snapshot: 15,
+        amount_earned: 6,
+        created_at: '2026-06-02T00:00:00Z',
+        service: { name: 'Haircut' },
+      },
+    ],
+    ...overrides,
+  }
+}
+
+function setPages(rows: AppointmentWithEntries[], count = rows.length) {
+  state.history.data = { pages: [{ rows, count }] }
+}
+
+beforeEach(() => {
+  vi.clearAllMocks()
+  state.history = {
+    isLoading: false,
+    isError: false,
+    error: null,
+    hasNextPage: false,
+    isFetchingNextPage: false,
+    data: { pages: [{ rows: [], count: 0 }] },
+  }
+})
+
+describe('IncomeHistory', () => {
+  it('renders the "Income history" heading and defaults to a 7-day window', () => {
+    render(<IncomeHistory currency="USD" />)
+
+    expect(screen.getByRole('heading', { name: 'Income history' })).toBeInTheDocument()
+    const today = todayLocal()
+    expect(screen.getByLabelText('From')).toHaveValue(shiftDays(today, -6))
+    expect(screen.getByLabelText('To')).toHaveValue(today)
+  })
+
+  it('renders an appointment with its service lines', () => {
+    setPages([
+      appointment({
+        entries: [
+          {
+            id: 'e1',
+            user_id: 'u1',
+            appointment_id: 'a1',
+            service_id: 's1',
+            price_snapshot: 50,
+            commission_pct_snapshot: 15,
+            amount_earned: 6,
+            created_at: '2026-06-02T00:00:00Z',
+            service: { name: 'Massage' },
+          },
+        ],
+      }),
+    ])
+    render(<IncomeHistory currency="USD" />)
+
+    const list = screen.getAllByRole('list')[0]
+    expect(within(list).getByText('Massage')).toBeInTheDocument()
+    // With no tip, the line amount and the take-home total both read $6.00.
+    expect(within(list).getAllByText('$6.00')).toHaveLength(2)
+  })
+
+  it('shows the tip line and a take-home that includes it', () => {
+    setPages([appointment({ tip: 4 })])
+    render(<IncomeHistory currency="USD" />)
+
+    const list = screen.getAllByRole('list')[0]
+    expect(within(list).getByText('Tip')).toBeInTheDocument()
+    expect(within(list).getByText('$4.00')).toBeInTheDocument()
+    // 6 earned + 4 tip = 10 take-home.
+    expect(within(list).getByText('$10.00')).toBeInTheDocument()
+  })
+
+  it('deletes an appointment after confirmation', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    setPages([appointment()])
+    const user = userEvent.setup()
+    render(<IncomeHistory currency="USD" />)
+
+    await user.click(screen.getByRole('button', { name: 'Delete entry' }))
+    expect(deleteMutate).toHaveBeenCalledWith('a1')
+  })
+
+  it('shows a "Load more" button when more pages exist and fetches the next one', async () => {
+    setPages([appointment()], 5)
+    state.history.hasNextPage = true
+    const user = userEvent.setup()
+    render(<IncomeHistory currency="USD" />)
+
+    expect(screen.getByText('Showing 1 of 5')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Load more' }))
+    expect(fetchNextPage).toHaveBeenCalledTimes(1)
+  })
+
+  it('hides "Load more" once everything is loaded', () => {
+    setPages([appointment()], 1)
+    state.history.hasNextPage = false
+    render(<IncomeHistory currency="USD" />)
+
+    expect(screen.queryByRole('button', { name: 'Load more' })).not.toBeInTheDocument()
+  })
+
+  it('shows an empty-range message when the window has no income', () => {
+    setPages([], 0)
+    render(<IncomeHistory currency="USD" />)
+
+    expect(screen.getByText('No income in this date range.')).toBeInTheDocument()
+  })
+
+  it('shows an error alert when the history fails to load', () => {
+    state.history.isError = true
+    state.history.error = new Error('Network down')
+    state.history.data = undefined
+    render(<IncomeHistory currency="USD" />)
+
+    expect(screen.getByText('Network down')).toBeInTheDocument()
+  })
+})

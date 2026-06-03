@@ -1,44 +1,23 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { computeTakeHome } from '@/lib/calc'
-import { formatPrice } from '@/lib/format'
 
-import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Alert } from '@/components/ui/Alert'
 import { Spinner } from '@/components/ui/Spinner'
 
 import { useProfile, useServices } from '@/features/services/useServices'
 import { EntryForm, type EntryFormValues } from './EntryForm'
-import {
-  useAppointments,
-  useCreateAppointment,
-  useDeleteAppointment,
-} from './useIncome'
+import { IncomeHistory } from './IncomeHistory'
+import { useCreateAppointment } from './useIncome'
 
 const DEFAULT_CURRENCY = 'PLN'
-
-function formatDate(value: string): string {
-  // `value` is a date-only string (YYYY-MM-DD); parse as local, not UTC.
-  const [y, m, d] = value.split('-').map(Number)
-  const date = new Date(y, (m ?? 1) - 1, d ?? 1)
-  if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
-}
 
 export default function LogIncomePage() {
   const { t } = useTranslation()
   const profileQuery = useProfile()
   const servicesQuery = useServices()
-  const appointmentsQuery = useAppointments()
   const createAppointment = useCreateAppointment()
-  const deleteAppointment = useDeleteAppointment()
 
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [formKey, setFormKey] = useState(0)
@@ -65,11 +44,6 @@ export default function LogIncomePage() {
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : t('income.saveError'))
     }
-  }
-
-  function handleDelete(id: string) {
-    if (!window.confirm(t('income.deleteConfirm'))) return
-    deleteAppointment.mutate(id)
   }
 
   const setupLoading = profileQuery.isLoading || servicesQuery.isLoading
@@ -117,94 +91,7 @@ export default function LogIncomePage() {
         )}
       </section>
 
-      <section>
-        <h2 className="mb-3 text-lg font-semibold text-[var(--color-fg)]">
-          {t('income.recent')}
-        </h2>
-
-        {appointmentsQuery.isLoading ? (
-          <div
-            role="status"
-            aria-label={t('income.loadingEntries')}
-            className="flex justify-center py-10 text-[var(--color-fg-muted)]"
-          >
-            <Spinner />
-          </div>
-        ) : appointmentsQuery.isError ? (
-          <Alert variant="error">
-            {appointmentsQuery.error instanceof Error
-              ? appointmentsQuery.error.message
-              : t('income.loadEntriesError')}
-          </Alert>
-        ) : appointmentsQuery.data && appointmentsQuery.data.length > 0 ? (
-          <Card className="p-0">
-            <ul className="divide-y divide-[var(--color-border)]">
-              {appointmentsQuery.data.map((appointment) => {
-                const earned = appointment.entries.reduce(
-                  (sum, e) => sum + e.amount_earned,
-                  0,
-                )
-                const takeHome = computeTakeHome(earned, appointment.tip)
-                return (
-                  <li key={appointment.id} className="px-4 py-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 text-sm text-[var(--color-fg-muted)]">
-                        {formatDate(appointment.provided_on)}
-                        {appointment.customer ? ` · ${appointment.customer}` : ''}
-                      </div>
-                      <div className="flex shrink-0 items-center gap-1">
-                        <span className="tabular-nums font-medium text-[var(--color-fg)]">
-                          {formatPrice(takeHome, currency)}
-                        </span>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          aria-label={t('income.deleteEntry')}
-                          onClick={() => handleDelete(appointment.id)}
-                        >
-                          <Trash2 size={18} aria-hidden="true" />
-                        </Button>
-                      </div>
-                    </div>
-                    <ul className="mt-1 space-y-0.5">
-                      {appointment.entries.map((entry) => (
-                        <li
-                          key={entry.id}
-                          className="flex justify-between gap-3 text-sm"
-                        >
-                          <span className="line-clamp-2 min-w-0 break-words text-[var(--color-fg)]">
-                            {entry.service?.name ?? t('income.serviceFallback')}
-                          </span>
-                          <span className="shrink-0 tabular-nums text-[var(--color-fg-muted)]">
-                            {formatPrice(entry.amount_earned, currency)}
-                          </span>
-                        </li>
-                      ))}
-                      {appointment.tip > 0 && (
-                        <li className="flex justify-between gap-3 text-sm">
-                          <span className="line-clamp-2 min-w-0 break-words text-[var(--color-fg)]">
-                            {t('income.tip')}
-                          </span>
-                          <span className="shrink-0 tabular-nums text-[var(--color-fg-muted)]">
-                            {formatPrice(appointment.tip, currency)}
-                          </span>
-                        </li>
-                      )}
-                    </ul>
-                  </li>
-                )
-              })}
-            </ul>
-          </Card>
-        ) : (
-          <Card>
-            <p className="text-center text-sm text-[var(--color-fg-muted)]">
-              {t('income.noEntries')}
-            </p>
-          </Card>
-        )}
-      </section>
+      <IncomeHistory currency={currency} />
     </div>
   )
 }
