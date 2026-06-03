@@ -5,9 +5,13 @@ import type {
   IncomeEntryWithService,
 } from '@/features/income/api'
 import {
+  customWindow,
   filterToRange,
+  filterToWindow,
   groupByRange,
   groupByService,
+  groupByWindow,
+  pickGranularity,
   rangeBounds,
 } from './aggregations'
 
@@ -263,5 +267,174 @@ describe('groupByService', () => {
       }),
     ])
     expect(result).toEqual([{ name: 'Haircut', total: 10 }])
+  })
+})
+
+describe('pickGranularity', () => {
+  const daysFromNewYear = (n: number) => new Date(2026, 0, 1 + n)
+
+  it('uses day granularity for spans under 93 days', () => {
+    expect(pickGranularity(new Date(2026, 0, 1), daysFromNewYear(92))).toBe('day')
+  })
+
+  it('switches to month granularity at 93 days', () => {
+    expect(pickGranularity(new Date(2026, 0, 1), daysFromNewYear(93))).toBe('month')
+  })
+
+  it('uses month granularity up to 36 months', () => {
+    expect(pickGranularity(new Date(2026, 0, 1), new Date(2029, 0, 1))).toBe('month')
+  })
+
+  it('switches to year granularity past 36 months', () => {
+    expect(pickGranularity(new Date(2026, 0, 1), new Date(2029, 1, 1))).toBe('year')
+  })
+})
+
+describe('customWindow', () => {
+  it('resolves explicit from/to with an exclusive end', () => {
+    const w = customWindow([], '2026-06-01', '2026-06-10', now)
+    expect(w.start).toEqual(new Date(2026, 5, 1))
+    expect(w.end).toEqual(new Date(2026, 5, 11))
+    expect(w.granularity).toBe('day')
+  })
+
+  it('all time derives start from the earliest appointment and end from today', () => {
+    const w = customWindow(
+      [appt({ provided_on: '2026-01-10' }), appt({ provided_on: '2026-03-05' })],
+      '',
+      '',
+      now,
+    )
+    expect(w.start).toEqual(new Date(2026, 0, 10))
+    expect(w.end).toEqual(new Date(2026, 5, 16)) // today + 1 day
+  })
+
+  it('all time with no appointments yields a single day at today', () => {
+    const w = customWindow([], '', '', now)
+    expect(w.start).toEqual(new Date(2026, 5, 15))
+    expect(w.end).toEqual(new Date(2026, 5, 16))
+    expect(w.granularity).toBe('day')
+  })
+
+  it('supports a one-sided from bound', () => {
+    const w = customWindow([], '2026-06-01', '', now)
+    expect(w.start).toEqual(new Date(2026, 5, 1))
+    expect(w.end).toEqual(new Date(2026, 5, 16))
+  })
+
+  it('supports a one-sided to bound', () => {
+    const w = customWindow([appt({ provided_on: '2026-02-01' })], '', '2026-06-10', now)
+    expect(w.start).toEqual(new Date(2026, 1, 1))
+    expect(w.end).toEqual(new Date(2026, 5, 11))
+  })
+})
+
+describe('filterToWindow', () => {
+  it('includes the start day and excludes the exclusive end', () => {
+    const w = customWindow([], '2026-06-01', '2026-06-10', now)
+    const result = filterToWindow(
+      [
+        appt({ provided_on: '2026-06-01', tip: 1 }), // start — included
+        appt({ provided_on: '2026-06-10', tip: 2 }), // inclusive 'to' — included
+        appt({ provided_on: '2026-06-11', tip: 3 }), // == end — excluded
+        appt({ provided_on: '2026-05-31', tip: 4 }), // before start — excluded
+      ],
+      w,
+    )
+    expect(result.map((a) => a.tip)).toEqual([1, 2])
+  })
+})
+
+describe('groupByWindow', () => {
+  it('day granularity across a month boundary uses M/D labels', () => {
+    const w = customWindow([], '2026-05-30', '2026-06-02', now)
+    const result = groupByWindow(
+      [
+        appt({
+          provided_on: '2026-05-31',
+          entries: [line({ amount_earned: 5 })],
+          tip: 1,
+        }),
+        appt({ provided_on: '2026-06-01', entries: [line({ amount_earned: 7 })] }),
+      ],
+      w,
+    )
+    expect(result.map((b) => b.label)).toEqual(['5/30', '5/31', '6/1', '6/2'])
+    expect(result.map((b) => b.total)).toEqual([0, 6, 7, 0])
+    expect(result.map((b) => b.count)).toEqual([0, 1, 1, 0])
+  })
+
+  it("month granularity across a year boundary uses MON 'YY labels", () => {
+    const w = customWindow([], '2025-11-01', '2026-02-28', now)
+    const result = groupByWindow(
+      [
+        appt({ provided_on: '2025-12-15', entries: [line({ amount_earned: 10 })] }),
+        appt({
+          provided_on: '2026-01-20',
+          entries: [line({ amount_earned: 4 })],
+          tip: 2,
+        }),
+      ],
+      w,
+    )
+    expect(result.map((b) => b.label)).toEqual([
+      "Nov '25",
+      "Dec '25",
+      "Jan '26",
+      "Feb '26",
+    ])
+    expect(result.map((b) => b.total)).toEqual([0, 10, 6, 0])
+    expect(result.map((b) => b.count)).toEqual([0, 1, 1, 0])
+  })
+
+  it('year granularity over a multi-year span uses YYYY labels', () => {
+    const w = customWindow([], '2022-01-01', '2026-06-15', now)
+    const result = groupByWindow(
+      [
+        appt({ provided_on: '2023-05-01', entries: [line({ amount_earned: 9 })] }),
+        appt({
+          provided_on: '2025-07-01',
+          entries: [line({ amount_earned: 3 })],
+          tip: 1,
+        }),
+      ],
+      w,
+    )
+    expect(result.map((b) => b.label)).toEqual(['2022', '2023', '2024', '2025', '2026'])
+    expect(result.map((b) => b.total)).toEqual([0, 9, 0, 4, 0])
+    expect(result.map((b) => b.count)).toEqual([0, 1, 0, 1, 0])
+  })
+
+  it('zero-fills buckets for an empty span', () => {
+    const w = customWindow([], '2026-06-01', '2026-06-03', now)
+    const result = groupByWindow([], w)
+    expect(result).toHaveLength(3)
+    expect(result.every((b) => b.total === 0 && b.count === 0)).toBe(true)
+  })
+
+  it('bucket totals and counts sum to the filtered earnings and count', () => {
+    const appointments = [
+      appt({
+        provided_on: '2026-06-02',
+        entries: [line({ amount_earned: 10 })],
+        tip: 2,
+      }),
+      appt({
+        provided_on: '2026-06-05',
+        entries: [line({ amount_earned: 5 }), line({ amount_earned: 3 })],
+      }),
+      appt({ provided_on: '2026-07-01', entries: [line({ amount_earned: 9 })] }), // outside
+    ]
+    const w = customWindow([], '2026-06-01', '2026-06-30', now)
+    const buckets = groupByWindow(appointments, w)
+    const filtered = filterToWindow(appointments, w)
+    const bucketTotal = buckets.reduce((s, b) => s + b.total, 0)
+    const bucketCount = buckets.reduce((s, b) => s + b.count, 0)
+    const filteredTotal = filtered.reduce(
+      (s, a) => s + a.entries.reduce((x, e) => x + e.amount_earned, 0) + a.tip,
+      0,
+    )
+    expect(bucketTotal).toBeCloseTo(filteredTotal, 2)
+    expect(bucketCount).toBe(filtered.length)
   })
 })
