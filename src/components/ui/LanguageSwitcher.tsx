@@ -4,7 +4,7 @@ import { Languages } from 'lucide-react'
 import { SUPPORTED_LANGUAGES } from '@/lib/i18n/constants'
 
 const selectClassName = [
-  'h-11 w-full appearance-none rounded-[var(--radius-md)] border py-2 pl-10 pr-8 text-sm',
+  'h-11 w-full appearance-none rounded-[var(--radius-md)] border py-2 pl-10 pr-8 text-base',
   'text-[var(--color-fg)] bg-[var(--color-surface)] outline-none',
   'transition-colors duration-[var(--duration-fast)]',
   'focus-visible:ring-2 focus-visible:ring-[var(--color-ring)] focus-visible:ring-offset-0',
