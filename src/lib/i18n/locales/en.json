@@ -50,6 +50,7 @@
     "noEntries": "No entries yet. Log your first one above.",
     "deleteConfirm": "Delete this entry? This cannot be undone.",
     "deleteEntry": "Delete entry",
+    "dayTotal": "Total for {{date}}",
     "saveError": "Could not save income.",
     "serviceFallback": "Service",
     "date": "Date",

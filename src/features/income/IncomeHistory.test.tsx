@@ -152,11 +152,32 @@ describe('IncomeHistory', () => {
 
     const list = screen.getAllByRole('list')[0]
     expect(within(list).getByText('Massage')).toBeInTheDocument()
-    // The date label leads with the short weekday
+    // The date appears once, as a group header that leads with the short weekday
     // (2026-06-02 is a Tuesday; the test locale renders it as "Tue, Jun 2, 2026").
-    expect(within(list).getByText(/Tue, Jun 2, 2026/)).toBeInTheDocument()
-    // With no tip, the line amount and the take-home total both read $6.00.
+    expect(within(list).getAllByText(/Tue, Jun 2, 2026/)).toHaveLength(1)
+    // With no tip, the service take-home line and the day total both read $6.00
+    // (no per-appointment total is shown).
     expect(within(list).getAllByText('$6.00')).toHaveLength(2)
+  })
+
+  it('groups appointments by date with one header and a daily total per day', () => {
+    setPages([
+      appointment({ id: 'a1', provided_on: '2026-06-02', tip: 4 }), // take-home 10
+      appointment({ id: 'a2', provided_on: '2026-06-02', tip: 0 }), // take-home 6
+      appointment({ id: 'a3', provided_on: '2026-06-01', tip: 0 }), // take-home 6
+    ])
+    render(<IncomeHistory currency="USD" />)
+
+    const list = screen.getAllByRole('list')[0]
+    // Two distinct dates → two headers. 2026-06-01 is a Monday.
+    expect(within(list).getAllByText(/Tue, Jun 2, 2026/)).toHaveLength(1)
+    expect(within(list).getAllByText(/Mon, Jun 1, 2026/)).toHaveLength(1)
+    // The Jun 2 header totals the day's two appointments: 10 + 6 = $16.00.
+    expect(within(list).getByText('$16.00')).toBeInTheDocument()
+    // Three appointments → three delete buttons.
+    expect(within(list).getAllByRole('button', { name: 'Delete entry' })).toHaveLength(
+      3,
+    )
   })
 
   it('shows the tip line and a take-home that includes it', () => {
@@ -166,7 +187,7 @@ describe('IncomeHistory', () => {
     const list = screen.getAllByRole('list')[0]
     expect(within(list).getByText('Tip')).toBeInTheDocument()
     expect(within(list).getByText('$4.00')).toBeInTheDocument()
-    // 6 earned + 4 tip = 10 take-home.
+    // 6 earned + 4 tip = 10, shown only as the (single-appointment) day total.
     expect(within(list).getByText('$10.00')).toBeInTheDocument()
   })
 
