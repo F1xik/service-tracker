@@ -19,7 +19,9 @@ function formatDate(value: string): string {
   const [y, m, d] = value.split('-').map(Number)
   const date = new Date(y, (m ?? 1) - 1, d ?? 1)
   if (Number.isNaN(date.getTime())) return value
+  // Include the short weekday; Intl places it up front (e.g. «пн, 1 июня 2026 г.»).
   return date.toLocaleDateString(undefined, {
+    weekday: 'short',
     month: 'short',
     day: 'numeric',
     year: 'numeric',
