@@ -19,11 +19,15 @@ function formatDate(value: string): string {
   const [y, m, d] = value.split('-').map(Number)
   const date = new Date(y, (m ?? 1) - 1, d ?? 1)
   if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleDateString(undefined, {
-    month: 'short',
+  // Compose the label so the weekday sits between month and year
+  // (e.g. «1 июня пн 2026 г.»); Intl would otherwise place it at the front.
+  const dayMonth = date.toLocaleDateString(undefined, {
     day: 'numeric',
-    year: 'numeric',
+    month: 'short',
   })
+  const weekday = date.toLocaleDateString(undefined, { weekday: 'short' })
+  const year = date.toLocaleDateString(undefined, { year: 'numeric' })
+  return `${dayMonth} ${weekday} ${year}`
 }
 
 interface Filter {
