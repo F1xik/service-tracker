@@ -8,7 +8,6 @@ Greenfield project. The user provides services to customers and wants to:
 - Apply a single commission percentage (their cut of the total price) that applies to **all** services
 - Record income by picking a service from the list each time one is provided
 - See simple, clean stats/charts (total income per period, split by service type)
-- Import existing history from a local file (format TBD — pluggable parser)
 
 Constraints:
 - **Free tier only** (Supabase + Vercel)
@@ -25,7 +24,7 @@ Constraints:
 | Styling | **Tailwind CSS** | Phone-first responsive |
 | Routing | **React Router** | Standard client routing |
 | Data fetching | **TanStack Query** | Caching, loading/error states over Supabase calls |
-| Forms/validation | **Zod** + react-hook-form | Shared validation for forms AND import parsing |
+| Forms/validation | **Zod** + react-hook-form | Shared validation across forms |
 | Charts | **Recharts** | Lightweight, clean line/pie/bar charts |
 | Backend | **Supabase** | Free tier: Postgres + Auth + RLS |
 | Hosting | **Vercel** (frontend) + Supabase (backend) | Free tier, simple deploy |
@@ -47,15 +46,12 @@ src/
   lib/
     supabase.ts          # Supabase client init
     calc.ts              # pure earnings/aggregation functions (no React, unit-testable)
-    importers/
-      index.ts           # registry: pick parser by format
-      csv.ts             # default CSV parser
   features/
     auth/                # sign up / sign in / session
-    services/            # CRUD list of services + commission setting
+    services/            # CRUD list of services
     income/              # log income: pick service -> record entry
     stats/               # charts: total per period, split by service
-    import/              # upload file -> preview -> confirm import
+    settings/            # language + commission settings
   components/ui/         # reusable presentational components
   routes/                # route definitions / pages
 supabase/
@@ -79,11 +75,9 @@ See `docs/tasks/` for individual task files.
 | 04 | Services & commission settings | |
 | 05 | Log income flow | |
 | 06 | Stats & charts | |
-| 07 | Import from file | |
 | 08 | README & deploy docs | |
 
 ## Notes / Deferred
 
 - The schema ships as two migrations: `0001_initial_schema.sql` (tables, RLS, signup trigger) and `0002_integrity_constraints.sql` (value CHECK constraints + a backstop validation trigger on `income_entries`).
-- Import file format is not finalized — CSV is the default; the real format slots in behind the same `importers` registry once provided.
 - When Capacitor wrapping is desired: point it at the Vite build output, add desired native plugins. No app code changes needed.

@@ -18,7 +18,7 @@ Email/password authentication via Supabase Auth, with a session context availabl
 - `signUp` calls `supabase.auth.signUp`; on success the trigger (Task 02) creates the `profiles` row.
 - After sign-in, redirect to `/` (the log-income page).
 - After sign-out, redirect to `/sign-in`.
-- Protected routes (`/`, `/services`, `/stats`, `/import`) are wrapped with `<ProtectedRoute>`.
+- Protected routes (`/`, `/services`, `/stats`, `/settings`) are wrapped with `<ProtectedRoute>`.
 
 ## Forms
 

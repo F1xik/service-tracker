@@ -18,13 +18,15 @@ import {
   useInfiniteAppointments,
 } from './useIncome'
 
-function formatDate(value: string): string {
+function formatDate(value: string, locale: string): string {
   // `value` is a date-only string (YYYY-MM-DD); parse as local, not UTC.
   const [y, m, d] = value.split('-').map(Number)
   const date = new Date(y, (m ?? 1) - 1, d ?? 1)
   if (Number.isNaN(date.getTime())) return value
-  // Include the short weekday; Intl places it up front (e.g. «пн, 1 июня 2026 г.»).
-  return date.toLocaleDateString(undefined, {
+  // Format in the active app language (not the OS locale) so the heading matches
+  // the chosen UI language. Include the short weekday; Intl places it up front
+  // (e.g. «пн, 1 июня 2026 г.»).
+  return date.toLocaleDateString(locale, {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
@@ -48,7 +50,8 @@ interface IncomeHistoryProps {
 }
 
 export function IncomeHistory({ currency }: IncomeHistoryProps) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const locale = i18n.language
   const [filter, setFilter] = useState<Filter>(defaultFilter)
   // Notes are collapsed by default; this holds the ids of appointments whose
   // note the user has expanded inline.
@@ -114,15 +117,15 @@ export function IncomeHistory({ currency }: IncomeHistoryProps) {
                 <li key={group.date}>
                   <div className="flex items-baseline justify-between gap-3 bg-[var(--color-surface-muted)] px-4 py-2">
                     <h3 className="text-sm font-semibold text-[var(--color-fg)]">
-                      {formatDate(group.date)}
+                      {formatDate(group.date, locale)}
                     </h3>
                     <span
                       className="shrink-0 tabular-nums text-sm font-semibold text-[var(--color-fg)]"
                       aria-label={t('income.dayTotal', {
-                        date: formatDate(group.date),
+                        date: formatDate(group.date, locale),
                       })}
                     >
-                      {formatPrice(group.total, currency)}
+                      {formatPrice(group.total, currency, locale)}
                     </span>
                   </div>
                   <ul className="divide-y divide-[var(--color-border)]">
@@ -189,7 +192,7 @@ export function IncomeHistory({ currency }: IncomeHistoryProps) {
                                   {entry.service?.name ?? t('income.serviceFallback')}
                                 </span>
                                 <span className="shrink-0 tabular-nums text-[var(--color-fg-muted)]">
-                                  {formatPrice(entry.amount_earned, currency)}
+                                  {formatPrice(entry.amount_earned, currency, locale)}
                                 </span>
                               </li>
                             ))}
@@ -199,7 +202,7 @@ export function IncomeHistory({ currency }: IncomeHistoryProps) {
                                   {t('income.tip')}
                                 </span>
                                 <span className="shrink-0 tabular-nums text-[var(--color-fg-muted)]">
-                                  {formatPrice(appointment.tip, currency)}
+                                  {formatPrice(appointment.tip, currency, locale)}
                                 </span>
                               </li>
                             )}

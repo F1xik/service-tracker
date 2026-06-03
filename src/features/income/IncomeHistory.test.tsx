@@ -156,7 +156,8 @@ describe('IncomeHistory', () => {
     const list = screen.getAllByRole('list')[0]
     expect(within(list).getByText('Massage')).toBeInTheDocument()
     // The date appears once, as a group header that leads with the short weekday
-    // (2026-06-02 is a Tuesday; the test locale renders it as "Tue, Jun 2, 2026").
+    // (2026-06-02 is a Tuesday; the app language is `en`, so it renders as
+    // "Tue, Jun 2, 2026" regardless of the host machine's OS locale).
     expect(within(list).getAllByText(/Tue, Jun 2, 2026/)).toHaveLength(1)
     // With no tip, the service take-home line and the day total both read $6.00
     // (no per-appointment total is shown).

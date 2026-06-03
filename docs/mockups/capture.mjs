@@ -21,7 +21,6 @@ const screens = [
   '02-log-income',
   '03-services',
   '04-stats',
-  '05-import',
 ];
 
 const viewports = [

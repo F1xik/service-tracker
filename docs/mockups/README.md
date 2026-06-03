@@ -22,7 +22,7 @@ truth; if a token changes there, update `tokens.css` and regenerate.
 ## Screens
 
 Each screen is captured at **mobile (390px)** + **desktop (1280px)**, in **light** + **dark** —
-20 PNGs in [`images/`](./images), named `<screen>.<viewport>.<theme>.png`.
+16 PNGs in [`images/`](./images), named `<screen>.<viewport>.<theme>.png`.
 
 | Screen | Spec | Implemented by | Mobile (light) |
 |---|---|---|---|
@@ -30,7 +30,6 @@ Each screen is captured at **mobile (390px)** + **desktop (1280px)**, in **light
 | Log Income (Home) | [§5.2](../design-system.md#52-log-income-home--primary-daily-screen) | Task 05 (Income) | ![Log Income](./images/02-log-income.mobile.light.png) |
 | Services & settings | [§5.3](../design-system.md#53-services--settings) | Task 04 (Services) | ![Services](./images/03-services.mobile.light.png) |
 | Stats | [§5.4](../design-system.md#54-stats) | Task 06 (Stats) | ![Stats](./images/04-stats.mobile.light.png) |
-| Import | [§5.5](../design-system.md#55-import) | Task 07 (Import) | ![Import](./images/05-import.mobile.light.png) |
 
 ## Known approximations
 
@@ -41,7 +40,7 @@ Each screen is captured at **mobile (390px)** + **desktop (1280px)**, in **light
   rather than pulled from `lucide-react`, so no runtime dependency is needed.
 - **"You earn" value** is a precomputed sample (`computeEarnings(40, 15) = 6.00`); the real screen
   computes it live via `src/lib/calc.ts`.
-- **Sticky bars** (tab bar, import confirm bar) are pinned statically *in the screenshots only* so
+- **Sticky bars** (tab bar) are pinned statically *in the screenshots only* so
   full-page captures show the whole screen; in a real viewport they dock as specified.
 
 ## Regenerating
