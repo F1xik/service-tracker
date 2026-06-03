@@ -72,14 +72,12 @@ const APPOINTMENT_SELECT = '*, entries:income_entries(*, service:services(name))
 export const DAY_FETCH_SIZE = 20
 
 /**
- * One page of appointments — always whole days — plus the exact total for the
- * window and a cursor for the next page.
+ * One page of appointments — always whole days — plus a cursor for the next
+ * page.
  */
 export interface AppointmentsDayPage {
   /** Appointments for complete days only (a day is never split across pages). */
   rows: AppointmentWithEntries[]
-  /** Exact total appointment count for the whole window (for the "showing X of Y" footer). */
-  count: number
   /**
    * Upper `provided_on` bound (YYYY-MM-DD, inclusive) for the next page, or
    * `null` when the window is fully loaded.
@@ -120,23 +118,22 @@ export async function getAppointmentsDayPage({
 
   let query = supabase
     .from('appointments')
-    .select(APPOINTMENT_SELECT, { count: 'exact' })
+    .select(APPOINTMENT_SELECT)
     .order('provided_on', { ascending: false })
     .order('created_at', { ascending: false })
 
   if (from) query = query.gte('provided_on', from)
   if (upper) query = query.lte('provided_on', upper)
 
-  const { data, error, count } = await query.limit(DAY_FETCH_SIZE + 1)
+  const { data, error } = await query.limit(DAY_FETCH_SIZE + 1)
   if (error) throw error
 
   const rows = (data as AppointmentWithEntries[] | null) ?? []
-  const total = count ?? 0
 
   // Fewer rows than the over-fetch limit means we reached the start of the
   // window: every day in the batch is complete, so there is nothing more.
   if (rows.length <= DAY_FETCH_SIZE) {
-    return { rows, count: total, nextCursor: null }
+    return { rows, nextCursor: null }
   }
 
   // The oldest date in the batch may have been cut off by the limit. Drop it and
@@ -145,7 +142,7 @@ export async function getAppointmentsDayPage({
   const complete = rows.filter((row) => row.provided_on !== lastDate)
 
   if (complete.length > 0) {
-    return { rows: complete, count: total, nextCursor: lastDate }
+    return { rows: complete, nextCursor: lastDate }
   }
 
   // Pathological case: a single day has more than `DAY_FETCH_SIZE` appointments,
@@ -163,9 +160,31 @@ export async function getAppointmentsDayPage({
 
   return {
     rows: (dayData as AppointmentWithEntries[] | null) ?? [],
-    count: total,
     nextCursor: from && lastDate <= from ? null : shiftDays(lastDate, -1),
   }
+}
+
+/**
+ * Count the distinct service days (`provided_on`) in a window, for the
+ * "showing X of Y" footer. Pagination is by day, so the footer counts days, not
+ * appointments. Selects only the date column (no joins); RLS scopes rows to the
+ * logged-in user.
+ */
+export async function getAppointmentDayCount({
+  from,
+  to,
+}: { from?: string; to?: string } = {}): Promise<number> {
+  let query = supabase.from('appointments').select('provided_on')
+  if (from) query = query.gte('provided_on', from)
+  if (to) query = query.lte('provided_on', to)
+
+  const { data, error } = await query
+  if (error) throw error
+
+  const days = new Set(
+    (data as { provided_on: string }[] | null)?.map((r) => r.provided_on),
+  )
+  return days.size
 }
 
 /**

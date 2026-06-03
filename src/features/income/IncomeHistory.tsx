@@ -12,7 +12,11 @@ import { Spinner } from '@/components/ui/Spinner'
 
 import { DateRangePicker, type DateRange, type PresetId } from './DateRangePicker'
 import { groupAppointmentsByDate } from './grouping'
-import { useDeleteAppointment, useInfiniteAppointments } from './useIncome'
+import {
+  useAppointmentDayCount,
+  useDeleteAppointment,
+  useInfiniteAppointments,
+} from './useIncome'
 
 function formatDate(value: string): string {
   // `value` is a date-only string (YYYY-MM-DD); parse as local, not UTC.
@@ -47,6 +51,7 @@ export function IncomeHistory({ currency }: IncomeHistoryProps) {
   const { t } = useTranslation()
   const [filter, setFilter] = useState<Filter>(defaultFilter)
   const historyQuery = useInfiniteAppointments(filter.range)
+  const dayCountQuery = useAppointmentDayCount(filter.range)
   const deleteAppointment = useDeleteAppointment()
 
   function handleDelete(id: string) {
@@ -55,7 +60,9 @@ export function IncomeHistory({ currency }: IncomeHistoryProps) {
   }
 
   const appointments = historyQuery.data?.pages.flatMap((page) => page.rows) ?? []
-  const total = historyQuery.data?.pages[0]?.count ?? 0
+  // Pagination is by day, so the footer counts days (groups), not appointments.
+  const groups = groupAppointmentsByDate(appointments)
+  const totalDays = dayCountQuery.data ?? groups.length
 
   return (
     <section>
@@ -89,7 +96,7 @@ export function IncomeHistory({ currency }: IncomeHistoryProps) {
         <>
           <Card className="p-0">
             <ul className="divide-y divide-[var(--color-border)]">
-              {groupAppointmentsByDate(appointments).map((group) => (
+              {groups.map((group) => (
                 <li key={group.date}>
                   <div className="flex items-baseline justify-between gap-3 bg-[var(--color-surface-muted)] px-4 py-2">
                     <h3 className="text-sm font-semibold text-[var(--color-fg)]">
@@ -169,7 +176,7 @@ export function IncomeHistory({ currency }: IncomeHistoryProps) {
           )}
 
           <p className="mt-3 text-center text-xs text-[var(--color-fg-muted)]">
-            {t('income.showingCount', { shown: appointments.length, total })}
+            {t('income.showingCount', { shown: groups.length, total: totalDays })}
           </p>
         </>
       ) : (

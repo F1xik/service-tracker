@@ -16,6 +16,7 @@ import {
   createAppointment,
   deleteAppointment,
   DAY_FETCH_SIZE,
+  getAppointmentDayCount,
   getAppointmentsDayPage,
   getAllAppointments,
 } from './api'
@@ -89,8 +90,8 @@ describe('createAppointment', () => {
 
 describe('getAppointmentsDayPage', () => {
   /** Mock the over-fetch query chain ending in `.limit(...)`, with a date window. */
-  function mockWindowQuery(result: { data: unknown; count: number | null }) {
-    const limit = vi.fn().mockResolvedValue({ ...result, error: null })
+  function mockWindowQuery(data: unknown) {
+    const limit = vi.fn().mockResolvedValue({ data, error: null })
     const lte = vi.fn().mockReturnValue({ limit })
     const gte = vi.fn().mockReturnValue({ lte })
     const order2 = vi.fn().mockReturnValue({ gte })
@@ -99,9 +100,9 @@ describe('getAppointmentsDayPage', () => {
     return { select, order1, order2, gte, lte, limit }
   }
 
-  it('filters by the window, orders, over-fetches one extra, and passes the count through', async () => {
+  it('filters by the window, orders, and over-fetches one extra row', async () => {
     const rows = daySpread('2026-06-05', 3)
-    const q = mockWindowQuery({ data: rows, count: 42 })
+    const q = mockWindowQuery(rows)
     from.mockReturnValue({ select: q.select })
 
     const result = await getAppointmentsDayPage({
@@ -112,7 +113,6 @@ describe('getAppointmentsDayPage', () => {
     expect(from).toHaveBeenCalledWith('appointments')
     expect(q.select).toHaveBeenCalledWith(
       '*, entries:income_entries(*, service:services(name))',
-      { count: 'exact' },
     )
     expect(q.order1).toHaveBeenCalledWith('provided_on', { ascending: false })
     expect(q.order2).toHaveBeenCalledWith('created_at', { ascending: false })
@@ -120,11 +120,11 @@ describe('getAppointmentsDayPage', () => {
     expect(q.lte).toHaveBeenCalledWith('provided_on', '2026-06-07')
     expect(q.limit).toHaveBeenCalledWith(DAY_FETCH_SIZE + 1)
     // Under the over-fetch limit → whole window loaded, every day complete.
-    expect(result).toEqual({ rows, count: 42, nextCursor: null })
+    expect(result).toEqual({ rows, nextCursor: null })
   })
 
   it('uses `before` as the inclusive upper bound for later pages', async () => {
-    const q = mockWindowQuery({ data: [], count: 0 })
+    const q = mockWindowQuery([])
     from.mockReturnValue({ select: q.select })
 
     await getAppointmentsDayPage({
@@ -146,7 +146,7 @@ describe('getAppointmentsDayPage', () => {
     const result = await getAppointmentsDayPage()
 
     expect(limit).toHaveBeenCalledWith(DAY_FETCH_SIZE + 1)
-    expect(result).toEqual({ rows: [], count: 0, nextCursor: null })
+    expect(result).toEqual({ rows: [], nextCursor: null })
   })
 
   it('trims the oldest (possibly partial) day and returns it as the next cursor', async () => {
@@ -154,7 +154,7 @@ describe('getAppointmentsDayPage', () => {
     // day may be cut off by the limit, so it is dropped for the next page.
     const complete = daySpread('2026-06-05', DAY_FETCH_SIZE - 2)
     const partial = daySpread('2026-06-04', 3)
-    const q = mockWindowQuery({ data: [...complete, ...partial], count: 50 })
+    const q = mockWindowQuery([...complete, ...partial])
     from.mockReturnValue({ select: q.select })
 
     const result = await getAppointmentsDayPage({
@@ -162,14 +162,14 @@ describe('getAppointmentsDayPage', () => {
       to: '2026-06-07',
     })
 
-    expect(result).toEqual({ rows: complete, count: 50, nextCursor: '2026-06-04' })
+    expect(result).toEqual({ rows: complete, nextCursor: '2026-06-04' })
   })
 
   it('fetches a single oversized day in full and points the cursor before it', async () => {
     // All over-fetched rows are the same day → trimming leaves nothing, so the
     // day is re-fetched in full and the cursor moves strictly before it.
     const overflow = daySpread('2026-06-05', DAY_FETCH_SIZE + 1)
-    const q = mockWindowQuery({ data: overflow, count: 30 })
+    const q = mockWindowQuery(overflow)
 
     const fullDay = daySpread('2026-06-05', 25)
     const dayGte = vi.fn().mockResolvedValue({ data: fullDay, error: null })
@@ -188,7 +188,41 @@ describe('getAppointmentsDayPage', () => {
 
     expect(eq).toHaveBeenCalledWith('provided_on', '2026-06-05')
     expect(dayGte).toHaveBeenCalledWith('provided_on', '2026-06-01')
-    expect(result).toEqual({ rows: fullDay, count: 30, nextCursor: '2026-06-04' })
+    expect(result).toEqual({ rows: fullDay, nextCursor: '2026-06-04' })
+  })
+})
+
+describe('getAppointmentDayCount', () => {
+  it('counts distinct provided_on days within the window', async () => {
+    const lte = vi.fn().mockResolvedValue({
+      data: [
+        { provided_on: '2026-06-05' },
+        { provided_on: '2026-06-05' },
+        { provided_on: '2026-06-04' },
+      ],
+      error: null,
+    })
+    const gte = vi.fn().mockReturnValue({ lte })
+    const select = vi.fn().mockReturnValue({ gte })
+    from.mockReturnValue({ select })
+
+    const result = await getAppointmentDayCount({
+      from: '2026-06-01',
+      to: '2026-06-07',
+    })
+
+    expect(from).toHaveBeenCalledWith('appointments')
+    expect(select).toHaveBeenCalledWith('provided_on')
+    expect(gte).toHaveBeenCalledWith('provided_on', '2026-06-01')
+    expect(lte).toHaveBeenCalledWith('provided_on', '2026-06-07')
+    expect(result).toBe(2)
+  })
+
+  it('returns 0 for an empty window', async () => {
+    const select = vi.fn().mockResolvedValue({ data: null, error: null })
+    from.mockReturnValue({ select })
+
+    expect(await getAppointmentDayCount()).toBe(0)
   })
 })
 

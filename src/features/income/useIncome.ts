@@ -1,8 +1,14 @@
-import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
 
 import {
   createAppointment,
   deleteAppointment,
+  getAppointmentDayCount,
   getAppointmentsDayPage,
   type CreateAppointmentInput,
 } from './api'
@@ -34,6 +40,17 @@ export function useInfiniteAppointments(range: AppointmentsRange) {
       }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+  })
+}
+
+/**
+ * Total distinct service days in the window, for the "showing X of Y" footer.
+ * Keyed by range so it refreshes when the window changes.
+ */
+export function useAppointmentDayCount(range: AppointmentsRange) {
+  return useQuery({
+    queryKey: [...appointmentsKey, 'dayCount', range] as const,
+    queryFn: () => getAppointmentDayCount(range),
   })
 }
 
