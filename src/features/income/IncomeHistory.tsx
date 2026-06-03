@@ -165,12 +165,19 @@ export function IncomeHistory({ currency }: IncomeHistoryProps) {
                             </div>
                           </div>
                           {note && noteExpanded && (
-                            <p
+                            <div
                               id={`note-${appointment.id}`}
-                              className="mt-1 whitespace-pre-wrap break-words text-sm text-[var(--color-fg-muted)]"
+                              className="mt-2 flex items-start gap-2 rounded-[var(--radius-md)] bg-[var(--color-surface-muted)] px-3 py-2"
                             >
-                              {note}
-                            </p>
+                              <StickyNote
+                                size={14}
+                                aria-hidden="true"
+                                className="mt-0.5 shrink-0 text-[var(--color-fg-subtle)]"
+                              />
+                              <p className="min-w-0 whitespace-pre-wrap break-words text-sm text-[var(--color-fg-muted)]">
+                                {note}
+                              </p>
+                            </div>
                           )}
                           <ul className="mt-1 space-y-0.5">
                             {appointment.entries.map((entry) => (
