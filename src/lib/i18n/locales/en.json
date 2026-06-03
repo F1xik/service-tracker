@@ -114,7 +114,13 @@
     "earned": "Earned",
     "customers": "Customers",
     "incomeByService": "Income by service",
-    "tips": "Tips"
+    "tips": "Tips",
+    "allTime": "All time",
+    "period": "Period",
+    "from": "From",
+    "to": "To",
+    "totalEarned": "Total earned",
+    "totalCustomers": "Total customers"
   },
   "validation": {
     "emailInvalid": "Enter a valid email address",

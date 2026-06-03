@@ -14,6 +14,19 @@ import type { AppointmentWithEntries } from '@/features/income/api'
 
 export type Range = 'today' | 'week' | 'month' | 'year'
 
+/**
+ * Bucketing granularity for the generic, date-range-driven window path used by
+ * the "All time" and "Period" filters. Chosen automatically from the span.
+ */
+export type Granularity = 'day' | 'month' | 'year'
+
+/** A resolved time window plus the bar-chart bucketing it should use. */
+export interface Window {
+  start: Date // inclusive, local midnight
+  end: Date // exclusive, local midnight
+  granularity: Granularity
+}
+
 /** Pie-slice label for tips, kept distinct from any service name. */
 export const TIPS_SLICE_NAME = 'Tips'
 
@@ -176,6 +189,165 @@ function bucketKey(date: Date, range: Range): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(
     date.getDate(),
   ).padStart(2, '0')}`
+}
+
+/**
+ * Generic, date-range-driven window path — backs the "All time" and "Period"
+ * filters. Unlike the four fixed presets above, the window's bucketing is chosen
+ * automatically from the span so an arbitrary range stays readable.
+ */
+
+const MS_PER_DAY = 86_400_000
+
+/**
+ * Choose a bar-chart granularity from a `[start, end)` span:
+ *   span < ~93 days   -> 'day'
+ *   span <= ~36 months -> 'month'
+ *   otherwise          -> 'year'
+ * This caps the bar count (≈92 day bars / ≈36 month bars) so a very wide range
+ * never renders thousands of bars.
+ */
+export function pickGranularity(start: Date, end: Date): Granularity {
+  const days = Math.round((end.getTime() - start.getTime()) / MS_PER_DAY)
+  if (days < 93) return 'day'
+  const months =
+    (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth())
+  if (months <= 36) return 'month'
+  return 'year'
+}
+
+/**
+ * Resolve a window from custom From/To date-only strings (`''` = unbounded).
+ * "All time" passes both empty: the start falls back to the earliest
+ * appointment (or today if there are none) and the end is today + 1 day.
+ */
+export function customWindow(
+  appointments: AppointmentWithEntries[],
+  from: string,
+  to: string,
+  now: Date = new Date(),
+): Window {
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+
+  let start: Date
+  if (from) {
+    start = parseProvidedOn(from)
+  } else {
+    let earliest: Date | null = null
+    for (const appointment of appointments) {
+      const date = parseProvidedOn(appointment.provided_on)
+      if (!earliest || date < earliest) earliest = date
+    }
+    start = earliest ?? today
+  }
+
+  let end: Date
+  if (to) {
+    end = parseProvidedOn(to)
+  } else {
+    end = new Date(today)
+  }
+  end.setDate(end.getDate() + 1) // make the end exclusive
+
+  // Guard against backwards or empty windows (e.g. earliest entry in the future).
+  if (end <= start) {
+    end = new Date(start)
+    end.setDate(end.getDate() + 1)
+  }
+
+  return { start, end, granularity: pickGranularity(start, end) }
+}
+
+/** Appointments whose `provided_on` falls in the window `[start, end)`. */
+export function filterToWindow(
+  appointments: AppointmentWithEntries[],
+  window: Window,
+): AppointmentWithEntries[] {
+  return appointments.filter((appointment) => {
+    const date = parseProvidedOn(appointment.provided_on)
+    return date >= window.start && date < window.end
+  })
+}
+
+/** Stable bucket key for a date at the given granularity. */
+function bucketKeyFor(date: Date, granularity: Granularity): string {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  if (granularity === 'year') return `${y}`
+  if (granularity === 'month') return `${y}-${m}`
+  return `${y}-${m}-${String(date.getDate()).padStart(2, '0')}`
+}
+
+/** The ordered list of bucket-start dates that tile a window. */
+function bucketDates(window: Window): Date[] {
+  const { start, end, granularity } = window
+  const dates: Date[] = []
+  const cursor =
+    granularity === 'year'
+      ? new Date(start.getFullYear(), 0, 1)
+      : granularity === 'month'
+        ? new Date(start.getFullYear(), start.getMonth(), 1)
+        : new Date(start.getFullYear(), start.getMonth(), start.getDate())
+  while (cursor < end) {
+    dates.push(new Date(cursor))
+    if (granularity === 'year') cursor.setFullYear(cursor.getFullYear() + 1)
+    else if (granularity === 'month') cursor.setMonth(cursor.getMonth() + 1)
+    else cursor.setDate(cursor.getDate() + 1)
+  }
+  return dates
+}
+
+/**
+ * Same shape as {@link groupByRange} but over an arbitrary {@link Window}.
+ * Buckets are pre-seeded across the whole span so empty periods still render,
+ * keeping the x-axis continuous. Labels adapt to the span so they stay distinct:
+ *   day   -> day number, or `M/D` once the span crosses months
+ *   month -> `MON`, or `MON 'YY` once the span crosses years
+ *   year  -> `YYYY`
+ */
+export function groupByWindow(
+  appointments: AppointmentWithEntries[],
+  window: Window,
+): RangeBucket[] {
+  const { granularity } = window
+  const dates = bucketDates(window)
+
+  const first = dates[0]
+  const last = dates[dates.length - 1]
+  const crossesMonth =
+    !!first &&
+    !!last &&
+    (first.getFullYear() !== last.getFullYear() || first.getMonth() !== last.getMonth())
+  const crossesYear = !!first && !!last && first.getFullYear() !== last.getFullYear()
+
+  const label = (date: Date): string => {
+    if (granularity === 'year') return `${date.getFullYear()}`
+    if (granularity === 'month') {
+      const name = MONTH_NAMES[date.getMonth()]
+      return crossesYear ? `${name} '${String(date.getFullYear()).slice(-2)}` : name
+    }
+    return crossesMonth
+      ? `${date.getMonth() + 1}/${date.getDate()}`
+      : String(date.getDate())
+  }
+
+  const buckets: RangeBucket[] = []
+  const indexOf = new Map<string, number>()
+  for (const date of dates) {
+    indexOf.set(bucketKeyFor(date, granularity), buckets.length)
+    buckets.push({ label: label(date), total: 0, count: 0 })
+  }
+
+  for (const appointment of filterToWindow(appointments, window)) {
+    const key = bucketKeyFor(parseProvidedOn(appointment.provided_on), granularity)
+    const index = indexOf.get(key)
+    if (index === undefined) continue
+    const bucket = buckets[index]
+    bucket.total += appointmentTotal(appointment)
+    bucket.count += 1
+  }
+
+  return buckets
 }
 
 /**
