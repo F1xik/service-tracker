@@ -2,13 +2,17 @@
 --
 -- HOW TO RUN:
 --   1. Open Supabase Dashboard → SQL Editor
---   2. Replace 'YOUR_USER_ID_HERE' on the next line with the real UUID
---      (Dashboard → Authentication → Users → copy the user's UUID)
---   3. Execute the script; it is one transaction — all rows insert or none do.
+--   2. Execute the script; it is one transaction — all rows insert or none do.
+--      v_uid is preset to the target user (a72ad210-1b9f-4354-aceb-ad43b23707e2).
 --
--- NOTE: the file name still says apr_jun but it now also covers December 2025.
---   January–March 2026 chunks are expected next; April–June will be re-supplied
---   from source and may then need reconciling (they currently use 40%).
+-- SERVICE TAXONOMY:
+--   • "Средние" and "Длинные" (both 120 zł) are one service "Средние/Длинные".
+--     Historical lines keep their own price_snapshot (e.g. discounted 100 zł cuts).
+--   • Peeling is its own service "Пилинг" (30 zł). A combined "Комбо + пилинг"
+--     (170) or "Комбо с бритвой + пилинг" (180) visit is recorded as ONE
+--     appointment with TWO line items — Комбо/Комбо с бритвой + Пилинг — so the
+--     person count is unchanged while the services are split (170 = 140 + 30,
+--     180 = 150 + 30; commission applies per line, the totals are identical).
 --
 -- DECEMBER 2025 conventions (differ from Apr–Jun):
 --   • Commission: 35%. The source listed a take-home in parentheses ("84 (42)")
@@ -44,11 +48,10 @@
 -- APRIL–JUNE 2026 conventions (unchanged from the original import):
 --   • Standard commission throughout: 40%
 --   • Exceptions: 10-Apr combo explicitly marked 50%; two June "на руки" entries
---     are kept entirely by the worker (100%); May "Настя" is a direct payment (100%).
+--     are kept entirely by the worker (100%).
 --   • Tips ("чай") are attached to the last appointment of the stated day.
 --   • "ребенок" entry (child haircut, 80 zł) has no date — assigned 2026-04-17.
 --   • "Продажа пасты" (23 Apr) skipped — no amount recorded.
---   • "Настя" (May) assigned placeholder date 2026-05-31 with note "Прямая оплата".
 --   • April individual entries sum to 1345.20 zł; the original tally says 1450 zł
 --     (Δ 104.80 zł — possibly the paste sale or a tallying error). Verify manually.
 --   • May individual entries sum to 942.60 zł ✓ matches tally.
@@ -56,16 +59,14 @@
 
 DO $$
 DECLARE
-  v_uid UUID := 'YOUR_USER_ID_HERE';  -- ← REPLACE THIS
+  v_uid UUID := 'a72ad210-1b9f-4354-aceb-ad43b23707e2';
 
   -- Service IDs (found or created)
   v_svc_short       UUID;  -- Короткие               90  zł
-  v_svc_medium      UUID;  -- Средние                120 zł
-  v_svc_long        UUID;  -- Длинные                120 zł
+  v_svc_medlong     UUID;  -- Средние/Длинные        120 zł
   v_svc_combo       UUID;  -- Комбо                  140 zł
   v_svc_combo_razor UUID;  -- Комбо с бритвой        150 zł
-  v_svc_combo_peel  UUID;  -- Комбо + пилинг         170 zł
-  v_svc_cbr_peel    UUID;  -- Комбо с бритвой+пилинг 180 zł
+  v_svc_peel        UUID;  -- Пилинг                  30 zł
   v_svc_beard_razor UUID;  -- Борода с бритвой        80 zł
   v_svc_child       UUID;  -- Детская стрижка         80 zł
   v_svc_wax         UUID;  -- Воск (уши и нос)        30 zł
@@ -84,14 +85,9 @@ BEGIN
     INSERT INTO services (user_id, name, price) VALUES (v_uid, 'Короткие', 90) RETURNING id INTO v_svc_short;
   END IF;
 
-  SELECT id INTO v_svc_medium FROM services WHERE user_id = v_uid AND name = 'Средние' LIMIT 1;
-  IF v_svc_medium IS NULL THEN
-    INSERT INTO services (user_id, name, price) VALUES (v_uid, 'Средние', 120) RETURNING id INTO v_svc_medium;
-  END IF;
-
-  SELECT id INTO v_svc_long FROM services WHERE user_id = v_uid AND name = 'Длинные' LIMIT 1;
-  IF v_svc_long IS NULL THEN
-    INSERT INTO services (user_id, name, price) VALUES (v_uid, 'Длинные', 120) RETURNING id INTO v_svc_long;
+  SELECT id INTO v_svc_medlong FROM services WHERE user_id = v_uid AND name = 'Средние/Длинные' LIMIT 1;
+  IF v_svc_medlong IS NULL THEN
+    INSERT INTO services (user_id, name, price) VALUES (v_uid, 'Средние/Длинные', 120) RETURNING id INTO v_svc_medlong;
   END IF;
 
   SELECT id INTO v_svc_combo FROM services WHERE user_id = v_uid AND name = 'Комбо' LIMIT 1;
@@ -104,14 +100,9 @@ BEGIN
     INSERT INTO services (user_id, name, price) VALUES (v_uid, 'Комбо с бритвой', 150) RETURNING id INTO v_svc_combo_razor;
   END IF;
 
-  SELECT id INTO v_svc_combo_peel FROM services WHERE user_id = v_uid AND name = 'Комбо + пилинг' LIMIT 1;
-  IF v_svc_combo_peel IS NULL THEN
-    INSERT INTO services (user_id, name, price) VALUES (v_uid, 'Комбо + пилинг', 170) RETURNING id INTO v_svc_combo_peel;
-  END IF;
-
-  SELECT id INTO v_svc_cbr_peel FROM services WHERE user_id = v_uid AND name = 'Комбо с бритвой + пилинг' LIMIT 1;
-  IF v_svc_cbr_peel IS NULL THEN
-    INSERT INTO services (user_id, name, price) VALUES (v_uid, 'Комбо с бритвой + пилинг', 180) RETURNING id INTO v_svc_cbr_peel;
+  SELECT id INTO v_svc_peel FROM services WHERE user_id = v_uid AND name = 'Пилинг' LIMIT 1;
+  IF v_svc_peel IS NULL THEN
+    INSERT INTO services (user_id, name, price) VALUES (v_uid, 'Пилинг', 30) RETURNING id INTO v_svc_peel;
   END IF;
 
   SELECT id INTO v_svc_beard_razor FROM services WHERE user_id = v_uid AND name = 'Борода с бритвой' LIMIT 1;
@@ -160,7 +151,7 @@ BEGIN
 
   INSERT INTO appointments (user_id, provided_on, note, source) VALUES (v_uid, '2025-12-13', 'Скидка 40%', 'import') RETURNING id INTO v_appt;
   INSERT INTO income_entries (user_id, appointment_id, service_id, price_snapshot, commission_pct_snapshot, amount_earned)
-    VALUES (v_uid, v_appt, v_svc_medium, 72, 35, 25.20);
+    VALUES (v_uid, v_appt, v_svc_medlong, 72, 35, 25.20);
 
   -- 15 Dec — Короткие 54
   INSERT INTO appointments (user_id, provided_on, note, source) VALUES (v_uid, '2025-12-15', 'Скидка 40%', 'import') RETURNING id INTO v_appt;
@@ -330,7 +321,7 @@ BEGIN
 
   INSERT INTO appointments (user_id, provided_on, source) VALUES (v_uid, '2026-01-05', 'import') RETURNING id INTO v_appt;
   INSERT INTO income_entries (user_id, appointment_id, service_id, price_snapshot, commission_pct_snapshot, amount_earned)
-    VALUES (v_uid, v_appt, v_svc_long, 120, 35, 42.00);
+    VALUES (v_uid, v_appt, v_svc_medlong, 120, 35, 42.00);
 
   -- 06 Jan — Мытьё головы 40 + Стрижка бороды 70
   INSERT INTO appointments (user_id, provided_on, source) VALUES (v_uid, '2026-01-06', 'import') RETURNING id INTO v_appt;
@@ -426,7 +417,7 @@ BEGIN
   -- 30 Jan — Средние 120 (с улицы)
   INSERT INTO appointments (user_id, provided_on, note, source) VALUES (v_uid, '2026-01-30', 'С улицы', 'import') RETURNING id INTO v_appt;
   INSERT INTO income_entries (user_id, appointment_id, service_id, price_snapshot, commission_pct_snapshot, amount_earned)
-    VALUES (v_uid, v_appt, v_svc_medium, 120, 40, 48.00);
+    VALUES (v_uid, v_appt, v_svc_medlong, 120, 40, 48.00);
 
   -- =========================================================================
   -- 4. FEBRUARY 2026  (18 человек)
@@ -472,7 +463,7 @@ BEGIN
   -- 14 Feb — Средние 100 + Короткие 90 (с улицы)
   INSERT INTO appointments (user_id, provided_on, source) VALUES (v_uid, '2026-02-14', 'import') RETURNING id INTO v_appt;
   INSERT INTO income_entries (user_id, appointment_id, service_id, price_snapshot, commission_pct_snapshot, amount_earned)
-    VALUES (v_uid, v_appt, v_svc_medium, 100, 40, 40.00);
+    VALUES (v_uid, v_appt, v_svc_medlong, 100, 40, 40.00);
 
   INSERT INTO appointments (user_id, provided_on, note, source) VALUES (v_uid, '2026-02-14', 'С улицы', 'import') RETURNING id INTO v_appt;
   INSERT INTO income_entries (user_id, appointment_id, service_id, price_snapshot, commission_pct_snapshot, amount_earned)
@@ -537,7 +528,7 @@ BEGIN
   -- 03 Mar — Средние 100
   INSERT INTO appointments (user_id, provided_on, source) VALUES (v_uid, '2026-03-03', 'import') RETURNING id INTO v_appt;
   INSERT INTO income_entries (user_id, appointment_id, service_id, price_snapshot, commission_pct_snapshot, amount_earned)
-    VALUES (v_uid, v_appt, v_svc_medium, 100, 40, 40.00);
+    VALUES (v_uid, v_appt, v_svc_medlong, 100, 40, 40.00);
 
   -- 04 Mar — Комбо 140 (улица, tip 50)
   INSERT INTO appointments (user_id, provided_on, note, tip, source) VALUES (v_uid, '2026-03-04', 'С улицы', 50, 'import') RETURNING id INTO v_appt;
@@ -724,7 +715,7 @@ BEGIN
 
   INSERT INTO appointments (user_id, provided_on, source) VALUES (v_uid, '2026-04-14', 'import') RETURNING id INTO v_appt;
   INSERT INTO income_entries (user_id, appointment_id, service_id, price_snapshot, commission_pct_snapshot, amount_earned)
-    VALUES (v_uid, v_appt, v_svc_medium, 120, 40, 48.00);
+    VALUES (v_uid, v_appt, v_svc_medlong, 120, 40, 48.00);
 
   -- 16 Apr — Короткие 90  |  tip 10
   INSERT INTO appointments (user_id, provided_on, tip, source) VALUES (v_uid, '2026-04-16', 10, 'import') RETURNING id INTO v_appt;
@@ -739,11 +730,11 @@ BEGIN
   -- 18 Apr — Средние 120 (tip 15) + Средние 120 + Короткие 90
   INSERT INTO appointments (user_id, provided_on, tip, source) VALUES (v_uid, '2026-04-18', 15, 'import') RETURNING id INTO v_appt;
   INSERT INTO income_entries (user_id, appointment_id, service_id, price_snapshot, commission_pct_snapshot, amount_earned)
-    VALUES (v_uid, v_appt, v_svc_medium, 120, 40, 48.00);
+    VALUES (v_uid, v_appt, v_svc_medlong, 120, 40, 48.00);
 
   INSERT INTO appointments (user_id, provided_on, source) VALUES (v_uid, '2026-04-18', 'import') RETURNING id INTO v_appt;
   INSERT INTO income_entries (user_id, appointment_id, service_id, price_snapshot, commission_pct_snapshot, amount_earned)
-    VALUES (v_uid, v_appt, v_svc_medium, 120, 40, 48.00);
+    VALUES (v_uid, v_appt, v_svc_medlong, 120, 40, 48.00);
 
   INSERT INTO appointments (user_id, provided_on, source) VALUES (v_uid, '2026-04-18', 'import') RETURNING id INTO v_appt;
   INSERT INTO income_entries (user_id, appointment_id, service_id, price_snapshot, commission_pct_snapshot, amount_earned)
@@ -815,10 +806,12 @@ BEGIN
   INSERT INTO income_entries (user_id, appointment_id, service_id, price_snapshot, commission_pct_snapshot, amount_earned)
     VALUES (v_uid, v_appt, v_svc_short, 90, 40, 36.00);
 
-  -- 08 May — Комбо+пилинг 170 + Короткие 90  |  tip 20 on last
+  -- 08 May — Комбо 140 + Пилинг 30 (one visit, two lines) + Короткие 90  |  tip 20 on last
   INSERT INTO appointments (user_id, provided_on, source) VALUES (v_uid, '2026-05-08', 'import') RETURNING id INTO v_appt;
   INSERT INTO income_entries (user_id, appointment_id, service_id, price_snapshot, commission_pct_snapshot, amount_earned)
-    VALUES (v_uid, v_appt, v_svc_combo_peel, 170, 40, 68.00);
+    VALUES (v_uid, v_appt, v_svc_combo, 140, 40, 56.00);
+  INSERT INTO income_entries (user_id, appointment_id, service_id, price_snapshot, commission_pct_snapshot, amount_earned)
+    VALUES (v_uid, v_appt, v_svc_peel, 30, 40, 12.00);
 
   INSERT INTO appointments (user_id, provided_on, tip, source) VALUES (v_uid, '2026-05-08', 20, 'import') RETURNING id INTO v_appt;
   INSERT INTO income_entries (user_id, appointment_id, service_id, price_snapshot, commission_pct_snapshot, amount_earned)
@@ -833,10 +826,12 @@ BEGIN
   INSERT INTO income_entries (user_id, appointment_id, service_id, price_snapshot, commission_pct_snapshot, amount_earned)
     VALUES (v_uid, v_appt, v_svc_short, 90, 40, 36.00);
 
-  -- 15 May — Комбо+пилинг 170  |  tip 30
+  -- 15 May — Комбо 140 + Пилинг 30 (one visit, two lines)  |  tip 30
   INSERT INTO appointments (user_id, provided_on, tip, source) VALUES (v_uid, '2026-05-15', 30, 'import') RETURNING id INTO v_appt;
   INSERT INTO income_entries (user_id, appointment_id, service_id, price_snapshot, commission_pct_snapshot, amount_earned)
-    VALUES (v_uid, v_appt, v_svc_combo_peel, 170, 40, 68.00);
+    VALUES (v_uid, v_appt, v_svc_combo, 140, 40, 56.00);
+  INSERT INTO income_entries (user_id, appointment_id, service_id, price_snapshot, commission_pct_snapshot, amount_earned)
+    VALUES (v_uid, v_appt, v_svc_peel, 30, 40, 12.00);
 
   -- 20 May — Короткие 76.50 (-15% от 90)
   INSERT INTO appointments (user_id, provided_on, note, source) VALUES (v_uid, '2026-05-20', 'Скидка 15%', 'import') RETURNING id INTO v_appt;
@@ -884,10 +879,12 @@ BEGIN
   INSERT INTO income_entries (user_id, appointment_id, service_id, price_snapshot, commission_pct_snapshot, amount_earned)
     VALUES (v_uid, v_appt, v_svc_combo, 140, 40, 56.00);
 
-  -- 29 May — Комбо с бритвой + пилинг 180
+  -- 29 May — Комбо с бритвой 150 + Пилинг 30 (one visit, two lines)
   INSERT INTO appointments (user_id, provided_on, source) VALUES (v_uid, '2026-05-29', 'import') RETURNING id INTO v_appt;
   INSERT INTO income_entries (user_id, appointment_id, service_id, price_snapshot, commission_pct_snapshot, amount_earned)
-    VALUES (v_uid, v_appt, v_svc_cbr_peel, 180, 40, 72.00);
+    VALUES (v_uid, v_appt, v_svc_combo_razor, 150, 40, 60.00);
+  INSERT INTO income_entries (user_id, appointment_id, service_id, price_snapshot, commission_pct_snapshot, amount_earned)
+    VALUES (v_uid, v_appt, v_svc_peel, 30, 40, 12.00);
 
   -- =========================================================================
   -- 8. JUNE 2026  (4 клиента)
@@ -907,11 +904,11 @@ BEGIN
   -- 01 Jun — Длинные 120 (regular 40%)  |  tip 20
   INSERT INTO appointments (user_id, provided_on, tip, source) VALUES (v_uid, '2026-06-01', 20, 'import') RETURNING id INTO v_appt;
   INSERT INTO income_entries (user_id, appointment_id, service_id, price_snapshot, commission_pct_snapshot, amount_earned)
-    VALUES (v_uid, v_appt, v_svc_long, 120, 40, 48.00);
+    VALUES (v_uid, v_appt, v_svc_medlong, 120, 40, 48.00);
 
   -- 01 Jun — Средние «на руки» 60 zł (full amount kept by worker → 100%)
   INSERT INTO appointments (user_id, provided_on, note, source) VALUES (v_uid, '2026-06-01', 'На руки', 'import') RETURNING id INTO v_appt;
   INSERT INTO income_entries (user_id, appointment_id, service_id, price_snapshot, commission_pct_snapshot, amount_earned)
-    VALUES (v_uid, v_appt, v_svc_medium, 60, 100, 60.00);
+    VALUES (v_uid, v_appt, v_svc_medlong, 60, 100, 60.00);
 
 END $$;
