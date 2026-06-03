@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
 import { computeEarnings, computeTakeHome, type Service } from '@/lib/calc'
 import { formatPrice } from '@/lib/format'
+import { todayLocal } from '@/lib/date'
 
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -30,15 +31,6 @@ const makeSchema = (t: TFunction) =>
   })
 
 export type EntryFormValues = z.infer<ReturnType<typeof makeSchema>>
-
-/** Local YYYY-MM-DD for "today" (avoids the UTC off-by-one of toISOString). */
-function localToday(): string {
-  const now = new Date()
-  const y = now.getFullYear()
-  const m = String(now.getMonth() + 1).padStart(2, '0')
-  const d = String(now.getDate()).padStart(2, '0')
-  return `${y}-${m}-${d}`
-}
 
 const selectClassName = [
   'h-11 w-full rounded-[var(--radius-md)] border px-3 text-base text-[var(--color-fg)]',
@@ -75,7 +67,7 @@ export function EntryForm({
   } = useForm<EntryFormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
-      provided_on: localToday(),
+      provided_on: todayLocal(),
       customer: '',
       note: '',
       tip: 0,

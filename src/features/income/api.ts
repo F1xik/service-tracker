@@ -62,16 +62,48 @@ export async function createAppointment(
 
 const APPOINTMENT_SELECT = '*, entries:income_entries(*, service:services(name))'
 
-/** Fetch the most recent appointments with their line items, newest first. */
-export async function getAppointments(limit = 20): Promise<AppointmentWithEntries[]> {
-  const { data, error } = await supabase
+/** One page of appointments plus the exact total for the requested window. */
+export interface AppointmentsPage {
+  rows: AppointmentWithEntries[]
+  count: number
+}
+
+export interface GetAppointmentsPageParams {
+  /** Inclusive lower bound on `provided_on` (YYYY-MM-DD); omit for no lower bound. */
+  from?: string
+  /** Inclusive upper bound on `provided_on` (YYYY-MM-DD); omit for no upper bound. */
+  to?: string
+  offset?: number
+  limit?: number
+}
+
+/**
+ * Fetch one page of appointments within an optional `provided_on` date window,
+ * newest first, with their line items and an exact total count for the window.
+ *
+ * Filtering is on `provided_on` — the user-facing service date, which is
+ * indexed — so it stays cheap as history grows. `offset`/`limit` drive the
+ * "load more" pagination; `count` lets the caller know when to stop. RLS scopes
+ * rows to the logged-in user, so no explicit `user_id` filter is required.
+ */
+export async function getAppointmentsPage({
+  from,
+  to,
+  offset = 0,
+  limit = 20,
+}: GetAppointmentsPageParams = {}): Promise<AppointmentsPage> {
+  let query = supabase
     .from('appointments')
-    .select(APPOINTMENT_SELECT)
+    .select(APPOINTMENT_SELECT, { count: 'exact' })
     .order('provided_on', { ascending: false })
     .order('created_at', { ascending: false })
-    .limit(limit)
+
+  if (from) query = query.gte('provided_on', from)
+  if (to) query = query.lte('provided_on', to)
+
+  const { data, error, count } = await query.range(offset, offset + limit - 1)
   if (error) throw error
-  return (data as AppointmentWithEntries[] | null) ?? []
+  return { rows: (data as AppointmentWithEntries[] | null) ?? [], count: count ?? 0 }
 }
 
 /**

@@ -1,13 +1,10 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Service } from '@/lib/calc'
 
-import type { AppointmentWithEntries } from './api'
-
 const createMutateAsync = vi.hoisted(() => vi.fn())
-const deleteMutate = vi.hoisted(() => vi.fn())
 
 const state = vi.hoisted(() => ({
   profile: {
@@ -20,12 +17,6 @@ const state = vi.hoisted(() => ({
     isError: false,
     data: [] as Service[],
   },
-  appointments: {
-    isLoading: false,
-    isError: false,
-    error: null as unknown,
-    data: [] as AppointmentWithEntries[],
-  },
 }))
 
 vi.mock('@/features/services/useServices', () => ({
@@ -34,9 +25,12 @@ vi.mock('@/features/services/useServices', () => ({
 }))
 
 vi.mock('./useIncome', () => ({
-  useAppointments: () => state.appointments,
   useCreateAppointment: () => ({ mutateAsync: createMutateAsync, isPending: false }),
-  useDeleteAppointment: () => ({ mutate: deleteMutate }),
+}))
+
+// The history list has its own test; stub it so these tests focus on the form.
+vi.mock('./IncomeHistory', () => ({
+  IncomeHistory: () => <div data-testid="income-history" />,
 }))
 
 import LogIncomePage from './LogIncomePage'
@@ -49,35 +43,6 @@ function service(overrides: Partial<Service> = {}): Service {
     price: 40,
     active: true,
     created_at: '2026-01-01T00:00:00Z',
-    ...overrides,
-  }
-}
-
-function appointment(
-  overrides: Partial<AppointmentWithEntries> = {},
-): AppointmentWithEntries {
-  return {
-    id: 'a1',
-    user_id: 'u1',
-    provided_on: '2026-06-02',
-    customer: null,
-    note: null,
-    tip: 0,
-    source: 'manual',
-    created_at: '2026-06-02T00:00:00Z',
-    entries: [
-      {
-        id: 'e1',
-        user_id: 'u1',
-        appointment_id: 'a1',
-        service_id: 's1',
-        price_snapshot: 40,
-        commission_pct_snapshot: 15,
-        amount_earned: 6,
-        created_at: '2026-06-02T00:00:00Z',
-        service: { name: 'Haircut' },
-      },
-    ],
     ...overrides,
   }
 }
@@ -99,7 +64,6 @@ beforeEach(() => {
     data: { currency: 'USD', commission_pct: 15 },
   }
   state.services = { isLoading: false, isError: false, data: [service()] }
-  state.appointments = { isLoading: false, isError: false, error: null, data: [] }
 })
 
 describe('LogIncomePage', () => {
@@ -124,51 +88,9 @@ describe('LogIncomePage', () => {
     expect(screen.queryByRole('button', { name: 'Log income' })).not.toBeInTheDocument()
   })
 
-  it('renders a recent appointment with its service lines', () => {
-    state.appointments.data = [
-      appointment({
-        entries: [
-          {
-            id: 'e1',
-            user_id: 'u1',
-            appointment_id: 'a1',
-            service_id: 's1',
-            price_snapshot: 50,
-            commission_pct_snapshot: 15,
-            amount_earned: 6,
-            created_at: '2026-06-02T00:00:00Z',
-            service: { name: 'Massage' },
-          },
-        ],
-      }),
-    ]
+  it('renders the income history below the form', () => {
     renderPage()
-    // Outer list is the recent-appointments list (each row nests its own list).
-    const list = screen.getAllByRole('list')[0]
-    expect(within(list).getByText('Massage')).toBeInTheDocument()
-    // With no tip, the line amount and the take-home total both read $6.00.
-    expect(within(list).getAllByText('$6.00')).toHaveLength(2)
-  })
-
-  it('shows the tip line and a take-home that includes it', () => {
-    state.appointments.data = [appointment({ tip: 4 })]
-    renderPage()
-    const list = screen.getAllByRole('list')[0]
-    // The tip is itemized…
-    expect(within(list).getByText('Tip')).toBeInTheDocument()
-    expect(within(list).getByText('$4.00')).toBeInTheDocument()
-    // …and folded into take-home: 6 earned + 4 tip = 10.
-    expect(within(list).getByText('$10.00')).toBeInTheDocument()
-  })
-
-  it('deletes an appointment after confirmation', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
-    state.appointments.data = [appointment()]
-    const user = userEvent.setup()
-    renderPage()
-
-    await user.click(screen.getByRole('button', { name: 'Delete entry' }))
-    expect(deleteMutate).toHaveBeenCalledWith('a1')
+    expect(screen.getByTestId('income-history')).toBeInTheDocument()
   })
 
   it('submits an appointment with a trimmed, assembled payload including tip', async () => {
@@ -201,16 +123,5 @@ describe('LogIncomePage', () => {
     await user.click(screen.getByRole('button', { name: 'Log income' }))
 
     expect(await screen.findByText('Save failed')).toBeInTheDocument()
-  })
-
-  it('shows an error alert when appointments fail to load', () => {
-    state.appointments = {
-      isLoading: false,
-      isError: true,
-      error: new Error('Network down'),
-      data: [],
-    }
-    renderPage()
-    expect(screen.getByText('Network down')).toBeInTheDocument()
   })
 })
