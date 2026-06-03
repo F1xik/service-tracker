@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { Check, Palette } from 'lucide-react'
+import { Check } from 'lucide-react'
 
 import { THEMES } from '@/lib/theme/constants'
 import { useTheme } from '@/features/settings/useTheme'
@@ -9,8 +9,9 @@ interface ThemeSwitcherProps {
 }
 
 /**
- * Theme picker rendered as a radiogroup of color swatches. The active theme is
- * persisted to localStorage via the ThemeProvider.
+ * Theme picker rendered as a radiogroup of color swatches. Each button is
+ * filled with its own theme's colors so it previews the palette directly. The
+ * active theme is persisted to localStorage via the ThemeProvider.
  */
 export function ThemeSwitcher({ className }: ThemeSwitcherProps) {
   const { t } = useTranslation()
@@ -34,36 +35,19 @@ export function ThemeSwitcher({ className }: ThemeSwitcherProps) {
             aria-label={label}
             onClick={() => setTheme(id)}
             className={[
-              'flex items-center gap-3 rounded-[var(--radius-md)] border px-3 py-2',
-              'text-sm font-medium text-[var(--color-fg)] bg-[var(--color-surface)]',
-              'transition-colors duration-[var(--duration-fast)] outline-none',
-              'focus-visible:ring-2 focus-visible:ring-[var(--color-ring)]',
+              // The swatch class paints the button in its own theme colors
+              // (background, text, border) so the button itself is the preview.
+              swatchClass,
+              'flex items-center justify-center gap-2 rounded-[var(--radius-md)] border px-3 py-3',
+              'text-sm font-medium transition-shadow duration-[var(--duration-fast)] outline-none',
+              'focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-bg)] focus-visible:ring-[var(--color-ring)]',
               selected
-                ? 'border-[var(--color-primary)] ring-2 ring-[var(--color-primary)]'
-                : 'border-[var(--color-border-strong)] hover:border-[var(--color-fg-muted)]',
+                ? 'ring-2 ring-offset-2 ring-offset-[var(--color-bg)] ring-[var(--color-primary)]'
+                : '',
             ].join(' ')}
           >
-            <span
-              aria-hidden="true"
-              className="relative grid h-7 w-7 place-items-center overflow-hidden rounded-full border border-[var(--color-border)]"
-            >
-              <span className={`absolute inset-0 ${swatchClass}`} />
-              {selected && (
-                <Check
-                  size={14}
-                  strokeWidth={3}
-                  className="relative text-[var(--color-primary-fg)] drop-shadow"
-                />
-              )}
-            </span>
+            {selected && <Check size={16} strokeWidth={3} aria-hidden="true" />}
             <span>{label}</span>
-            {selected && (
-              <Palette
-                size={16}
-                aria-hidden="true"
-                className="ml-auto text-[var(--color-primary)]"
-              />
-            )}
           </button>
         )
       })}

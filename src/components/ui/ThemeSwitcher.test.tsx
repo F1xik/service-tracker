@@ -38,9 +38,9 @@ describe('ThemeSwitcher', () => {
     const user = userEvent.setup()
     renderSwitcher()
 
-    await user.click(screen.getByRole('radio', { name: 'Pastel violet' }))
+    await user.click(screen.getByRole('radio', { name: 'Violet' }))
 
-    expect(screen.getByRole('radio', { name: 'Pastel violet' })).toHaveAttribute(
+    expect(screen.getByRole('radio', { name: 'Violet' })).toHaveAttribute(
       'aria-checked',
       'true',
     )
@@ -57,7 +57,7 @@ describe('ThemeSwitcher', () => {
     await user.click(screen.getByRole('radio', { name: 'Dark' }))
     expect(document.documentElement.classList.contains('dark')).toBe(true)
 
-    await user.click(screen.getByRole('radio', { name: 'Pastel pink' }))
+    await user.click(screen.getByRole('radio', { name: 'Pink' }))
     expect(document.documentElement.classList.contains('dark')).toBe(false)
     expect(document.documentElement.classList.contains('theme-pastel-pink')).toBe(true)
   })

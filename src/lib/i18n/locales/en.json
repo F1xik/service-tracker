@@ -16,9 +16,9 @@
     "themes": {
       "light": "Light",
       "dark": "Dark",
-      "pastelPink": "Pastel pink",
-      "pastelTiffany": "Pastel Tiffany",
-      "pastelViolet": "Pastel violet"
+      "pastelPink": "Pink",
+      "pastelTiffany": "Tiffany",
+      "pastelViolet": "Violet"
     },
     "commissionLabel": "Commission %",
     "commissionInfo": "Applies to new entries only. Past entries keep their saved snapshot.",

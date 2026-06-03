@@ -16,9 +16,9 @@
     "themes": {
       "light": "Светлая",
       "dark": "Тёмная",
-      "pastelPink": "Пастельно-розовая",
-      "pastelTiffany": "Пастельная Тиффани",
-      "pastelViolet": "Пастельно-фиолетовая"
+      "pastelPink": "Розовая",
+      "pastelTiffany": "Тиффани",
+      "pastelViolet": "Фиолетовая"
     },
     "commissionLabel": "Комиссия %",
     "commissionInfo": "Применяется только к новым записям. Прошлые записи сохраняют свой снимок.",

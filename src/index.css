@@ -177,39 +177,30 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Theme swatch previews for the settings picker (background + accent halves). */
+/* Theme swatch buttons for the settings picker — each is painted in its own
+   theme's surface/text/border so the button previews the palette directly. */
 .swatch-light {
-  background: linear-gradient(
-    135deg,
-    oklch(0.985 0.003 250) 0 50%,
-    oklch(0.511 0.238 277) 50% 100%
-  );
+  background-color: oklch(0.985 0.003 250);
+  color: oklch(0.21 0.037 264);
+  border-color: oklch(0.869 0.017 253);
 }
 .swatch-dark {
-  background: linear-gradient(
-    135deg,
-    oklch(0.165 0.02 264) 0 50%,
-    oklch(0.673 0.17 276) 50% 100%
-  );
+  background-color: oklch(0.165 0.02 264);
+  color: oklch(0.97 0.005 250);
+  border-color: oklch(0.372 0.038 258);
 }
 .swatch-pastel-pink {
-  background: linear-gradient(
-    135deg,
-    oklch(0.971 0.018 12) 0 50%,
-    oklch(0.59 0.18 9) 50% 100%
-  );
+  background-color: oklch(0.971 0.018 12);
+  color: oklch(0.31 0.07 5);
+  border-color: oklch(0.86 0.05 8);
 }
 .swatch-pastel-tiffany {
-  background: linear-gradient(
-    135deg,
-    oklch(0.972 0.025 185) 0 50%,
-    oklch(0.58 0.11 187) 50% 100%
-  );
+  background-color: oklch(0.972 0.025 185);
+  color: oklch(0.3 0.05 195);
+  border-color: oklch(0.855 0.055 186);
 }
 .swatch-pastel-violet {
-  background: linear-gradient(
-    135deg,
-    oklch(0.969 0.018 305) 0 50%,
-    oklch(0.55 0.2 300) 50% 100%
-  );
+  background-color: oklch(0.969 0.018 305);
+  color: oklch(0.31 0.07 300);
+  border-color: oklch(0.855 0.046 303);
 }
