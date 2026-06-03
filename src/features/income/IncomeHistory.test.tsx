@@ -152,9 +152,9 @@ describe('IncomeHistory', () => {
 
     const list = screen.getAllByRole('list')[0]
     expect(within(list).getByText('Massage')).toBeInTheDocument()
-    // The date label includes the weekday between month and year
-    // (2026-06-02 is a Tuesday; the test locale renders it as "Jun 2 Tue 2026").
-    expect(within(list).getByText(/Jun 2 Tue 2026/)).toBeInTheDocument()
+    // The date label leads with the short weekday
+    // (2026-06-02 is a Tuesday; the test locale renders it as "Tue, Jun 2, 2026").
+    expect(within(list).getByText(/Tue, Jun 2, 2026/)).toBeInTheDocument()
     // With no tip, the line amount and the take-home total both read $6.00.
     expect(within(list).getAllByText('$6.00')).toHaveLength(2)
   })
