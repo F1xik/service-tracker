@@ -4,7 +4,6 @@ import {
   Bar,
   BarChart,
   Cell,
-  Legend,
   Pie,
   PieChart,
   ResponsiveContainer,
@@ -25,6 +24,7 @@ import {
   groupByService,
   TIPS_SLICE_NAME,
   type Range,
+  type ServiceTotal,
 } from './aggregations'
 import { useProfile } from '@/features/services/useServices'
 import { useStats } from './useStats'
@@ -49,6 +49,18 @@ const PIE_COLORS = [
   '#dc2626',
   '#65a30d',
 ]
+
+// Build a legend row label: "name · price · pct%". Tips get a translated name.
+function serviceLabel(
+  slice: ServiceTotal,
+  serviceTotal: number,
+  currency: string,
+  t: (key: string) => string,
+): string {
+  const name = slice.name === TIPS_SLICE_NAME ? t('stats.tips') : slice.name
+  const pct = serviceTotal > 0 ? Math.round((slice.total / serviceTotal) * 100) : 0
+  return `${name} · ${formatPrice(slice.total, currency)} · ${pct}%`
+}
 
 export default function StatsPage() {
   const { t } = useTranslation()
@@ -195,21 +207,6 @@ export default function StatsPage() {
                         <Tooltip
                           formatter={(value: number) => formatPrice(value, currency)}
                         />
-                        <Legend
-                          formatter={(_value, _entry, index) => {
-                            const slice = serviceData[index]
-                            if (!slice) return ''
-                            const name =
-                              slice.name === TIPS_SLICE_NAME
-                                ? t('stats.tips')
-                                : slice.name
-                            const pct =
-                              serviceTotal > 0
-                                ? Math.round((slice.total / serviceTotal) * 100)
-                                : 0
-                            return `${name} · ${formatPrice(slice.total, currency)} · ${pct}%`
-                          }}
-                        />
                         <Pie
                           data={serviceData}
                           dataKey="total"
@@ -226,6 +223,28 @@ export default function StatsPage() {
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
+                  {/* Legend below the chart so it can never overlap the pie,
+                      and the card grows to fit any number of services. */}
+                  <ul className="mt-4 grid grid-cols-1 gap-x-4 gap-y-1 sm:grid-cols-2">
+                    {serviceData.map((slice, index) => (
+                      <li
+                        key={slice.name}
+                        className="flex items-center gap-2 text-sm text-[var(--color-fg)]"
+                      >
+                        <svg width={12} height={12} aria-hidden className="shrink-0">
+                          <rect
+                            width={12}
+                            height={12}
+                            rx={2}
+                            fill={PIE_COLORS[index % PIE_COLORS.length]}
+                          />
+                        </svg>
+                        <span className="truncate">
+                          {serviceLabel(slice, serviceTotal, currency, t)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
                 </Card>
               </section>
             </>

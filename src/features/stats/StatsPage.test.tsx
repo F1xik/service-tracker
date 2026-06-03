@@ -136,6 +136,18 @@ describe('StatsPage', () => {
     expect(barData.current.total).toHaveLength(7)
   })
 
+  it('renders a legend row per service below the pie chart', () => {
+    state.stats.data = [
+      entry({ provided_on: '2026-06-15', amount_earned: 30, tip: 10 }),
+    ]
+    render(<StatsPage />)
+    // Custom HTML legend (not behind the recharts mock): one row per slice,
+    // formatted as "name · price · pct%". One service + a tips slice.
+    expect(screen.getByText(/Haircut · .* · \d+%/)).toBeInTheDocument()
+    // Tips accumulate into their own translated slice.
+    expect(screen.getByText(/Tips · .* · \d+%/)).toBeInTheDocument()
+  })
+
   it('shows a window message when no entries fall in the selected range', async () => {
     const user = userEvent.setup()
     // Entry exists, but in a prior month; default range is the current month.
