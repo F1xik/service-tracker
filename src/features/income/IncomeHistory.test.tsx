@@ -224,6 +224,29 @@ describe('IncomeHistory', () => {
     expect(within(list).getByText('$10.00')).toBeInTheDocument()
   })
 
+  it('keeps an appointment note hidden until its toggle is clicked', async () => {
+    setPages([appointment({ note: 'Walk-in, paid cash' })])
+    const user = userEvent.setup()
+    render(<IncomeHistory currency="USD" />)
+
+    // Collapsed by default: the note text is not in the document.
+    expect(screen.queryByText('Walk-in, paid cash')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Show note' }))
+    expect(screen.getByText('Walk-in, paid cash')).toBeInTheDocument()
+
+    // The toggle flips to "Hide note" and collapses the note again.
+    await user.click(screen.getByRole('button', { name: 'Hide note' }))
+    expect(screen.queryByText('Walk-in, paid cash')).not.toBeInTheDocument()
+  })
+
+  it('shows no note toggle for an appointment without a note', () => {
+    setPages([appointment({ note: null })])
+    render(<IncomeHistory currency="USD" />)
+
+    expect(screen.queryByRole('button', { name: 'Show note' })).not.toBeInTheDocument()
+  })
+
   it('deletes an appointment after confirmation', async () => {
     vi.spyOn(window, 'confirm').mockReturnValue(true)
     setPages([appointment()])
