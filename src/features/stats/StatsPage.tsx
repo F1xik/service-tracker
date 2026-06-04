@@ -12,7 +12,7 @@ import {
   YAxis,
 } from 'recharts'
 
-import { formatPrice } from '@/lib/format'
+import { formatAmount, formatPrice } from '@/lib/format'
 import { Alert } from '@/components/ui/Alert'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
@@ -235,10 +235,10 @@ export default function StatsPage() {
               <div className="grid grid-cols-2 gap-4">
                 <Card className="min-w-0">
                   <p className="text-sm text-[var(--color-fg-muted)]">
-                    {t('stats.totalEarned')}
+                    {t('stats.totalEarned')}, {currency}
                   </p>
                   <p className="mt-1 break-words text-xl font-bold leading-tight text-[var(--color-fg)] tabular-nums">
-                    {formatPrice(incomeTotal, currency, locale)}
+                    {formatAmount(incomeTotal, locale)}
                   </p>
                 </Card>
                 <Card className="min-w-0">
@@ -251,18 +251,18 @@ export default function StatsPage() {
                 </Card>
                 <Card className="min-w-0">
                   <p className="text-sm text-[var(--color-fg-muted)]">
-                    {t('stats.totalIncomeExclTips')}
+                    {t('stats.totalIncomeExclTips')}, {currency}
                   </p>
                   <p className="mt-1 break-words text-xl font-bold leading-tight text-[var(--color-fg)] tabular-nums">
-                    {formatPrice(incomeExclTips, currency, locale)}
+                    {formatAmount(incomeExclTips, locale)}
                   </p>
                 </Card>
                 <Card className="min-w-0">
                   <p className="text-sm text-[var(--color-fg-muted)]">
-                    {t('stats.totalTips')}
+                    {t('stats.totalTips')}, {currency}
                   </p>
                   <p className="mt-1 break-words text-xl font-bold leading-tight text-[var(--color-fg)] tabular-nums">
-                    {formatPrice(tipsTotal, currency, locale)}
+                    {formatAmount(tipsTotal, locale)}
                   </p>
                 </Card>
               </div>
