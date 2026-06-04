@@ -38,16 +38,15 @@ export function ThemeSwitcher({ className }: ThemeSwitcherProps) {
               // The swatch class paints the button in its own theme colors
               // (background, text, border) so the button itself is the preview.
               swatchClass,
-              'flex items-center justify-center gap-2 rounded-[var(--radius-md)] border px-3 py-3',
-              'text-sm font-medium transition-shadow duration-[var(--duration-fast)] outline-none',
+              'flex h-12 items-center justify-center rounded-[var(--radius-md)] border',
+              'transition-shadow duration-[var(--duration-fast)] outline-none',
               'focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-bg)] focus-visible:ring-[var(--color-ring)]',
               selected
                 ? 'ring-2 ring-offset-2 ring-offset-[var(--color-bg)] ring-[var(--color-primary)]'
                 : '',
             ].join(' ')}
           >
-            {selected && <Check size={16} strokeWidth={3} aria-hidden="true" />}
-            <span>{label}</span>
+            {selected && <Check size={18} strokeWidth={3} aria-hidden="true" />}
           </button>
         )
       })}
