@@ -344,14 +344,16 @@ describe('pctChange', () => {
   })
 })
 
-describe('previousRangeFilter', () => {
-  it('selects the previous calendar month for the "month" range', () => {
+describe('previousRangeFilter (period-to-date)', () => {
+  it('truncates last month to the same day-of-month elapsed this month', () => {
+    // now is the 15th, so the comparison is last month's 1st–15th only.
     const result = previousRangeFilter(
       [
         appt({ provided_on: '2026-06-15', tip: 1 }), // this month — excluded
-        appt({ provided_on: '2026-05-31', tip: 2 }), // last month — included
-        appt({ provided_on: '2026-05-01', tip: 3 }), // last month — included
-        appt({ provided_on: '2026-04-30', tip: 4 }), // two months ago — excluded
+        appt({ provided_on: '2026-05-01', tip: 2 }), // last month, 1st — included
+        appt({ provided_on: '2026-05-15', tip: 3 }), // last month, 15th — included
+        appt({ provided_on: '2026-05-16', tip: 4 }), // past the 15th — excluded
+        appt({ provided_on: '2026-05-31', tip: 5 }), // end of last month — excluded
       ],
       'month',
       now,
@@ -359,21 +361,25 @@ describe('previousRangeFilter', () => {
     expect(result.map((a) => a.tip)).toEqual([2, 3])
   })
 
-  it('selects the prior 7-day week for the "week" range', () => {
+  it('matches weekdays for the "week" range (Mon–Wed vs Mon–Wed)', () => {
+    // Wednesday 2026-06-17: this week so far is Mon–Wed, so compare last week's
+    // Mon(8th)–Wed(10th) and exclude Thu(11th) onward.
+    const wednesday = new Date(2026, 5, 17)
     const result = previousRangeFilter(
       [
-        appt({ provided_on: '2026-06-15', tip: 1 }), // this week — excluded
+        appt({ provided_on: '2026-06-17', tip: 1 }), // this week — excluded
         appt({ provided_on: '2026-06-08', tip: 2 }), // last week Mon — included
-        appt({ provided_on: '2026-06-14', tip: 3 }), // last week Sun — included
-        appt({ provided_on: '2026-06-07', tip: 4 }), // week before — excluded
+        appt({ provided_on: '2026-06-10', tip: 3 }), // last week Wed — included
+        appt({ provided_on: '2026-06-11', tip: 4 }), // last week Thu — excluded
+        appt({ provided_on: '2026-06-14', tip: 5 }), // last week Sun — excluded
       ],
       'week',
-      now,
+      wednesday,
     )
     expect(result.map((a) => a.tip)).toEqual([2, 3])
   })
 
-  it('selects yesterday for the "today" range', () => {
+  it('selects all of yesterday for the "today" range', () => {
     const result = previousRangeFilter(
       [
         appt({ provided_on: '2026-06-15', tip: 1 }), // today — excluded
@@ -386,42 +392,57 @@ describe('previousRangeFilter', () => {
     expect(result.map((a) => a.tip)).toEqual([2])
   })
 
-  it('selects the previous calendar year for the "year" range', () => {
+  it('truncates last year to the same calendar date (year-to-date)', () => {
     const result = previousRangeFilter(
       [
         appt({ provided_on: '2026-01-01', tip: 1 }), // this year — excluded
-        appt({ provided_on: '2025-12-31', tip: 2 }), // last year — included
-        appt({ provided_on: '2024-12-31', tip: 3 }), // two years ago — excluded
+        appt({ provided_on: '2025-01-01', tip: 2 }), // last year, Jan 1 — included
+        appt({ provided_on: '2025-06-15', tip: 3 }), // last year, Jun 15 — included
+        appt({ provided_on: '2025-06-16', tip: 4 }), // past Jun 15 — excluded
+        appt({ provided_on: '2025-12-31', tip: 5 }), // end of last year — excluded
       ],
       'year',
       now,
     )
-    expect(result.map((a) => a.tip)).toEqual([2])
+    expect(result.map((a) => a.tip)).toEqual([2, 3])
   })
 })
 
-describe('previousWindow', () => {
-  it('is the equal-length span immediately before the window', () => {
-    const w = customWindow([], '2026-06-08', '2026-06-14', now) // 7-day span [8, 15)
-    const prev = previousWindow(w)
-    expect(prev.start).toEqual(new Date(2026, 5, 1)) // 7 days before the start
-    expect(prev.end).toEqual(w.start) // abuts the current window's start
-    expect(prev.granularity).toBe(w.granularity)
-  })
-
-  it('filters into the period just before the current one', () => {
-    const w = customWindow([], '2026-06-08', '2026-06-14', now)
-    const prev = previousWindow(w)
+describe('previousWindow (period-to-date)', () => {
+  it('compares the full prior span when the window has already ended', () => {
+    // April is wholly in the past relative to now (June 15), so the previous
+    // 30-day span [Mar 2, Apr 1) is used in full.
+    const w = customWindow([], '2026-04-01', '2026-04-30', now)
+    const prev = previousWindow(w, now)
     const result = filterToWindow(
       [
-        appt({ provided_on: '2026-06-08', tip: 1 }), // current window — excluded
-        appt({ provided_on: '2026-06-07', tip: 2 }), // previous window — included
-        appt({ provided_on: '2026-06-01', tip: 3 }), // previous window start — included
-        appt({ provided_on: '2026-05-31', tip: 4 }), // before previous window — excluded
+        appt({ provided_on: '2026-03-02', tip: 1 }), // prev span start — included
+        appt({ provided_on: '2026-03-31', tip: 2 }), // prev span — included
+        appt({ provided_on: '2026-04-01', tip: 3 }), // == current start — excluded
       ],
       prev,
     )
-    expect(result.map((a) => a.tip)).toEqual([2, 3])
+    expect(result.map((a) => a.tip)).toEqual([1, 2])
+  })
+
+  it('truncates the prior span to today when the window runs into the future', () => {
+    // Window June 1–30 with now June 15: 15 days elapsed, so the comparison is
+    // the first 15 days of the prior span (which starts a full 30 days before
+    // June 1, i.e. May 2) → [May 2, May 17).
+    const w = customWindow([], '2026-06-01', '2026-06-30', now)
+    const prev = previousWindow(w, now)
+    expect(prev.start).toEqual(new Date(2026, 4, 2)) // May 2
+    expect(prev.end).toEqual(new Date(2026, 4, 17)) // May 17 (exclusive)
+    const result = filterToWindow(
+      [
+        appt({ provided_on: '2026-05-02', tip: 1 }), // prev PTD start — included
+        appt({ provided_on: '2026-05-16', tip: 2 }), // last elapsed day — included
+        appt({ provided_on: '2026-05-17', tip: 3 }), // past elapsed portion — excluded
+        appt({ provided_on: '2026-05-31', tip: 4 }), // full prior span, not elapsed — excluded
+      ],
+      prev,
+    )
+    expect(result.map((a) => a.tip)).toEqual([1, 2])
   })
 })
 

@@ -167,40 +167,71 @@ export function filterToRange(
 }
 
 /**
- * Shift `now` back by one unit of `range` so the existing range helpers resolve
- * the immediately-preceding equivalent period (yesterday, last week, last month,
- * last year). Month/year anchor on a safe day-of-month so the arithmetic never
- * rolls into a neighbouring period (e.g. Mar 31 − 1 month must land in February).
+ * "Period-to-date" bounds for the period before the one `range` selects.
+ *
+ * A fixed range is always anchored on `now`, so the current period is always in
+ * progress; comparing it against the *whole* prior period would be unfair (a
+ * half-finished week always looks down against a full one). Instead we truncate
+ * the prior period to the same elapsed portion:
+ *   week  -> last week up to the same weekday (Mon–Wed vs Mon–Wed)
+ *   month -> last month up to the same day-of-month (1st–15th vs 1st–15th)
+ *   year  -> last year up to the same calendar date (Jan 1–Jun 15 vs Jan 1–Jun 15)
+ *   today -> all of yesterday (data is date-only, so a day can't be split further)
+ * Returns an inclusive start / exclusive end at day granularity.
  */
-function previousNow(range: Range, now: Date): Date {
+function previousRangeBounds(range: Range, now: Date): { start: Date; end: Date } {
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+
   if (range === 'today') {
-    const d = new Date(now)
-    d.setDate(d.getDate() - 1)
-    return d
+    const start = new Date(today)
+    start.setDate(start.getDate() - 1)
+    return { start, end: today }
   }
+
   if (range === 'week') {
-    const d = new Date(now)
-    d.setDate(d.getDate() - 7)
-    return d
+    // Days elapsed into this week, Monday(1)..Sunday(7); take that many days of
+    // last week so the same weekdays are compared.
+    const daysElapsed = ((today.getDay() + 6) % 7) + 1
+    const start = startOfWeek(today)
+    start.setDate(start.getDate() - 7)
+    const end = new Date(start)
+    end.setDate(end.getDate() + daysElapsed)
+    return { start, end }
   }
+
   if (range === 'month') {
-    return new Date(now.getFullYear(), now.getMonth() - 1, 1)
+    const start = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+    // `day 0` of this month is the last day of the previous month.
+    const prevMonthDays = new Date(now.getFullYear(), now.getMonth(), 0).getDate()
+    const daysElapsed = Math.min(today.getDate(), prevMonthDays)
+    const end = new Date(start)
+    end.setDate(end.getDate() + daysElapsed)
+    return { start, end }
   }
-  // year
-  return new Date(now.getFullYear() - 1, 0, 1)
+
+  // year — same calendar date a year earlier (exclusive end = the day after).
+  // The +1 can spill a day across the leap boundary (viewing on Feb 29), a rare
+  // single-day overcount we accept rather than special-case.
+  const start = new Date(now.getFullYear() - 1, 0, 1)
+  const end = new Date(now.getFullYear() - 1, now.getMonth(), today.getDate() + 1)
+  return { start, end }
 }
 
 /**
- * Appointments in the period immediately before the one `range` selects — last
- * week vs this week, last month vs this month, and so on. Powers the
- * period-over-period deltas on the summary cards.
+ * Appointments in the period-to-date before the one `range` selects — last week
+ * up to the same weekday, last month up to the same day, and so on. Powers the
+ * period-over-period deltas on the summary cards, comparing like-for-like.
  */
 export function previousRangeFilter(
   appointments: AppointmentWithEntries[],
   range: Range,
   now: Date = new Date(),
 ): AppointmentWithEntries[] {
-  return filterToRange(appointments, range, previousNow(range, now))
+  const { start, end } = previousRangeBounds(range, now)
+  return appointments.filter((appointment) => {
+    const date = parseProvidedOn(appointment.provided_on)
+    return date >= start && date < end
+  })
 }
 
 /**
@@ -350,14 +381,22 @@ export function filterToWindow(
 }
 
 /**
- * The equal-length span immediately before `window` (`[start − span, start)`),
- * preserving the bucketing granularity. Lets the custom "Period" filter compare
- * against the period just before it.
+ * The equal-length span immediately before `window`, period-to-date: it starts a
+ * full span earlier (`start − span`) but only runs as far as the current window
+ * has actually elapsed. A window ending today or earlier is already complete, so
+ * the comparison covers the full prior span; a window stretching into the future
+ * is truncated to the portion up to (and including) today, so an in-progress
+ * custom range compares like-for-like. Preserves the bucketing granularity.
  */
-export function previousWindow(window: Window): Window {
+export function previousWindow(window: Window, now: Date = new Date()): Window {
   const span = window.end.getTime() - window.start.getTime()
-  const end = new Date(window.start)
+  const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
+  // How far the current window has elapsed: the whole span once it has ended,
+  // otherwise only up to today.
+  const elapsedEnd = Math.min(window.end.getTime(), tomorrow.getTime())
+  const elapsedLen = Math.max(0, elapsedEnd - window.start.getTime())
   const start = new Date(window.start.getTime() - span)
+  const end = new Date(start.getTime() + elapsedLen)
   return { start, end, granularity: window.granularity }
 }
 
