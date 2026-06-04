@@ -34,7 +34,7 @@ export default function LogIncomePage() {
         customer: values.customer.trim() || null,
         note: values.note.trim() || null,
         tip: Number(values.tip) || 0,
-        commissionPct,
+        commissionPct: Number(values.commission) || 0,
         lines: values.lines.map((line) => ({
           service_id: line.service_id,
           price: Number(line.price),
@@ -91,7 +91,11 @@ export default function LogIncomePage() {
         )}
       </section>
 
-      <IncomeHistory currency={currency} />
+      <IncomeHistory
+        currency={currency}
+        activeServices={activeServices}
+        commissionPct={commissionPct}
+      />
     </div>
   )
 }

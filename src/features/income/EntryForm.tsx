@@ -20,6 +20,10 @@ const makeSchema = (t: TFunction) =>
     customer: z.string().trim().max(100, t('validation.customerMax')),
     note: z.string().trim().max(500, t('validation.noteMax')),
     tip: z.coerce.number().nonnegative(t('validation.tipNonnegative')),
+    commission: z.coerce
+      .number()
+      .min(0, t('validation.commissionRange'))
+      .max(100, t('validation.commissionRange')),
     lines: z
       .array(
         z.object({
@@ -41,11 +45,18 @@ const selectClassName = [
 
 interface EntryFormProps {
   activeServices: Service[]
+  /** Default commission % for new entries (from the profile). */
   commissionPct: number
   currency: string
   onSubmit: (values: EntryFormValues) => void | Promise<void>
   submitting?: boolean
   submitError?: string | null
+  /** Prefilled values for edit mode; omit to start a blank create form. */
+  initialValues?: EntryFormValues
+  /** Show an editable commission % field (edit mode). */
+  showCommission?: boolean
+  /** Submit button label; defaults to "Log income". */
+  submitLabel?: string
 }
 
 export function EntryForm({
@@ -55,6 +66,9 @@ export function EntryForm({
   onSubmit,
   submitting = false,
   submitError,
+  initialValues,
+  showCommission = false,
+  submitLabel,
 }: EntryFormProps) {
   const { t, i18n } = useTranslation()
   const locale = i18n.language
@@ -67,11 +81,12 @@ export function EntryForm({
     formState: { errors },
   } = useForm<EntryFormValues>({
     resolver: zodResolver(schema),
-    defaultValues: {
+    defaultValues: initialValues ?? {
       provided_on: todayLocal(),
       customer: '',
       note: '',
       tip: 0,
+      commission: commissionPct,
       lines: [{ service_id: '', price: undefined as unknown as number }],
     },
   })
@@ -80,11 +95,19 @@ export function EntryForm({
 
   const lines = useWatch({ control, name: 'lines' })
   const tipValue = useWatch({ control, name: 'tip' })
+  const commissionValue = useWatch({ control, name: 'commission' })
+  // Earnings preview tracks the live commission field so edits update the
+  // per-line "you earn" amounts and the total immediately.
+  const effectiveCommission = Number.isFinite(Number(commissionValue))
+    ? Number(commissionValue)
+    : commissionPct
   const earnedTotal = lines.reduce((sum, line) => {
     const price = Number(line?.price)
     return (
       sum +
-      (Number.isFinite(price) && price > 0 ? computeEarnings(price, commissionPct) : 0)
+      (Number.isFinite(price) && price > 0
+        ? computeEarnings(price, effectiveCommission)
+        : 0)
     )
   }, 0)
   const tip = Number(tipValue)
@@ -156,6 +179,32 @@ export function EntryForm({
         </Field>
       </div>
 
+      {showCommission && (
+        <Field
+          id="commission"
+          label={t('income.commission')}
+          error={errors.commission?.message}
+        >
+          <div className="relative">
+            <Input
+              id="commission"
+              type="number"
+              step="0.01"
+              min="0"
+              max="100"
+              inputMode="decimal"
+              error={!!errors.commission}
+              className="pr-9"
+              aria-describedby={errors.commission ? 'commission-error' : undefined}
+              {...register('commission')}
+            />
+            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-[var(--color-fg-subtle)]">
+              %
+            </span>
+          </div>
+        </Field>
+      )}
+
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-medium text-[var(--color-fg)]">
@@ -183,7 +232,7 @@ export function EntryForm({
           const price = Number(lines?.[index]?.price)
           const earned =
             Number.isFinite(price) && price > 0
-              ? computeEarnings(price, commissionPct)
+              ? computeEarnings(price, effectiveCommission)
               : 0
           const serviceReg = register(`lines.${index}.service_id`)
 
@@ -268,7 +317,7 @@ export function EntryForm({
                 <span className="font-medium tabular-nums text-[var(--color-fg)]">
                   {formatPrice(earned, currency, locale)}
                 </span>{' '}
-                {t('income.commissionNote', { pct: commissionPct })}
+                {t('income.commissionNote', { pct: effectiveCommission })}
               </p>
             </div>
           )
@@ -287,7 +336,7 @@ export function EntryForm({
       {submitError && <Alert variant="error">{submitError}</Alert>}
 
       <Button type="submit" loading={submitting} fullWidth>
-        {t('income.logIncome')}
+        {submitLabel ?? t('income.logIncome')}
       </Button>
     </form>
   )

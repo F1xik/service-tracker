@@ -173,4 +173,58 @@ describe('EntryForm', () => {
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1))
     expect(onSubmit.mock.calls[0][0].tip).toBe(7)
   })
+
+  describe('edit mode', () => {
+    const initialValues = {
+      provided_on: '2026-06-02',
+      customer: 'Jane',
+      note: '',
+      tip: 4,
+      commission: 15,
+      lines: [{ service_id: 's1', price: 40 }],
+    }
+
+    it('prefills the form and shows an editable commission field', () => {
+      setup({
+        initialValues,
+        showCommission: true,
+        submitLabel: 'Save changes',
+      })
+
+      expect(screen.getByLabelText(/Customer/)).toHaveValue('Jane')
+      expect(screen.getByLabelText(/Commission/)).toHaveValue(15)
+      expect(screen.getByLabelText(/Price/)).toHaveValue(40)
+      expect(screen.getByRole('button', { name: 'Save changes' })).toBeInTheDocument()
+    })
+
+    it('recomputes the earnings preview when commission changes', async () => {
+      const user = userEvent.setup()
+      setup({ initialValues, showCommission: true, submitLabel: 'Save changes' })
+
+      // 40 * 15% = 6.00 at first.
+      expect(screen.getAllByText(/\$6\.00/).length).toBeGreaterThan(0)
+
+      const commission = screen.getByLabelText(/Commission/)
+      await user.clear(commission)
+      await user.type(commission, '25')
+
+      // 40 * 25% = 10.00 once the commission is edited.
+      await waitFor(() =>
+        expect(screen.getAllByText(/\$10\.00/).length).toBeGreaterThan(0),
+      )
+    })
+
+    it('submits the edited commission value', async () => {
+      const user = userEvent.setup()
+      setup({ initialValues, showCommission: true, submitLabel: 'Save changes' })
+
+      const commission = screen.getByLabelText(/Commission/)
+      await user.clear(commission)
+      await user.type(commission, '25')
+      await user.click(screen.getByRole('button', { name: 'Save changes' }))
+
+      await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1))
+      expect(onSubmit.mock.calls[0][0].commission).toBe(25)
+    })
+  })
 })
