@@ -18,8 +18,11 @@
       "dark": "Dark",
       "pastelPink": "Pink",
       "pastelTiffany": "Tiffany",
-      "pastelViolet": "Violet"
+      "pastelViolet": "Violet",
+      "pastelYellow": "Yellow"
     },
+    "dailyRotation": "Daily random theme",
+    "dailyRotationHint": "Automatically switch to a new pastel theme on your first visit each day.",
     "commissionLabel": "Commission %",
     "commissionInfo": "Applies to new entries only. Past entries keep their saved snapshot.",
     "saveCommissionError": "Could not save commission."

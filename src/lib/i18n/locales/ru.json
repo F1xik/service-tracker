@@ -18,8 +18,11 @@
       "dark": "Тёмная",
       "pastelPink": "Розовая",
       "pastelTiffany": "Тиффани",
-      "pastelViolet": "Фиолетовая"
+      "pastelViolet": "Фиолетовая",
+      "pastelYellow": "Жёлтая"
     },
+    "dailyRotation": "Случайная тема каждый день",
+    "dailyRotationHint": "Автоматически выбирать новую пастельную тему при первом входе каждый день.",
     "commissionLabel": "Комиссия %",
     "commissionInfo": "Применяется только к новым записям. Прошлые записи сохраняют свой снимок.",
     "saveCommissionError": "Не удалось сохранить комиссию."

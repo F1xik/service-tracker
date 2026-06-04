@@ -12,8 +12,10 @@ import { Card } from '@/components/ui/Card'
 import { Alert } from '@/components/ui/Alert'
 import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher'
 import { ThemeSwitcher } from '@/components/ui/ThemeSwitcher'
+import { Switch } from '@/components/ui/Switch'
 
 import { useProfile, useUpdateProfile } from '@/features/services/useServices'
+import { useTheme } from '@/features/settings/useTheme'
 
 const makeCommissionSchema = (t: TFunction) =>
   z.object({
@@ -28,11 +30,27 @@ type CommissionValues = z.infer<ReturnType<typeof makeCommissionSchema>>
 /** Color theme picker — persists to localStorage via the ThemeProvider. */
 function ThemeSettings() {
   const { t } = useTranslation()
+  const { dailyRotation, setDailyRotation } = useTheme()
   return (
     <Card>
       <Field id="theme-switcher" label={t('settings.theme')}>
         <ThemeSwitcher />
       </Field>
+      <div className="mt-4 flex items-start justify-between gap-4 border-t border-[var(--color-border)] pt-4">
+        <div>
+          <p className="text-sm font-medium text-[var(--color-fg)]">
+            {t('settings.dailyRotation')}
+          </p>
+          <p className="mt-0.5 text-sm text-[var(--color-fg-subtle)]">
+            {t('settings.dailyRotationHint')}
+          </p>
+        </div>
+        <Switch
+          checked={dailyRotation}
+          onCheckedChange={setDailyRotation}
+          label={t('settings.dailyRotation')}
+        />
+      </div>
     </Card>
   )
 }
