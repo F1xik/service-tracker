@@ -10,7 +10,9 @@ import {
   deleteAppointment,
   getAppointmentDayCount,
   getAppointmentsDayPage,
+  updateAppointment,
   type CreateAppointmentInput,
+  type UpdateAppointmentInput,
 } from './api'
 
 const appointmentsKey = ['appointments'] as const
@@ -58,6 +60,14 @@ export function useCreateAppointment() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (input: CreateAppointmentInput) => createAppointment(input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: appointmentsKey }),
+  })
+}
+
+export function useUpdateAppointment() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: UpdateAppointmentInput) => updateAppointment(input),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: appointmentsKey }),
   })
 }

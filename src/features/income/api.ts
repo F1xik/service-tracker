@@ -21,6 +21,14 @@ export interface CreateAppointmentInput {
   lines: EntryLineInput[]
 }
 
+/**
+ * Edit of an existing appointment: same shape as a create, plus the `id` of
+ * the appointment being updated. Its line items are replaced wholesale.
+ */
+export interface UpdateAppointmentInput extends CreateAppointmentInput {
+  id: string
+}
+
 /** A line item joined to its service name, as shown in lists. */
 export interface IncomeEntryWithService extends IncomeEntry {
   service: { name: string } | null
@@ -51,6 +59,39 @@ export async function createAppointment(
   }))
 
   const { data, error } = await supabase.rpc('create_appointment', {
+    p_provided_on: input.provided_on,
+    p_customer: input.customer,
+    p_note: input.note,
+    p_tip: input.tip,
+    p_lines: lines,
+  })
+  if (error) throw error
+  return data as Appointment
+}
+
+/**
+ * Update an appointment and replace its line items in a single transaction via
+ * the `update_appointment` RPC. Like `createAppointment`, it runs as the caller
+ * so RLS and the backstop trigger still apply, and `amount_earned` is computed
+ * explicitly with `computeEarnings` per line — the RPC only stores the value.
+ *
+ * Editing is an explicit user action, so recomputing the snapshots here is
+ * intentional and does not violate the "never recalc after insert" rule (which
+ * only forbids implicitly touching entries when a service price or the profile
+ * commission changes).
+ */
+export async function updateAppointment(
+  input: UpdateAppointmentInput,
+): Promise<Appointment> {
+  const lines = input.lines.map((line) => ({
+    service_id: line.service_id,
+    price_snapshot: line.price,
+    commission_pct_snapshot: input.commissionPct,
+    amount_earned: computeEarnings(line.price, input.commissionPct),
+  }))
+
+  const { data, error } = await supabase.rpc('update_appointment', {
+    p_id: input.id,
     p_provided_on: input.provided_on,
     p_customer: input.customer,
     p_note: input.note,

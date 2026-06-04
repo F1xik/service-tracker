@@ -19,6 +19,7 @@ import {
   getAppointmentDayCount,
   getAppointmentsDayPage,
   getAllAppointments,
+  updateAppointment,
 } from './api'
 
 /** Build N appointments on `date` with distinct ids (newest-first order). */
@@ -85,6 +86,55 @@ describe('createAppointment', () => {
         lines: [{ service_id: 's1', price: 10 }],
       }),
     ).rejects.toThrow('trigger rejected')
+  })
+})
+
+describe('updateAppointment', () => {
+  it('calls the update_appointment RPC with p_id and recomputed amount_earned', async () => {
+    rpc.mockResolvedValue({ data: { id: 'a1' }, error: null })
+
+    const result = await updateAppointment({
+      id: 'a1',
+      provided_on: '2026-06-02',
+      customer: 'Jane',
+      note: null,
+      tip: 5,
+      commissionPct: 20,
+      lines: [{ service_id: 's1', price: 40 }],
+    })
+
+    expect(rpc).toHaveBeenCalledWith('update_appointment', {
+      p_id: 'a1',
+      p_provided_on: '2026-06-02',
+      p_customer: 'Jane',
+      p_note: null,
+      p_tip: 5,
+      p_lines: [
+        {
+          service_id: 's1',
+          price_snapshot: 40,
+          commission_pct_snapshot: 20,
+          amount_earned: computeEarnings(40, 20),
+        },
+      ],
+    })
+    expect(result).toEqual({ id: 'a1' })
+  })
+
+  it('propagates an RPC error', async () => {
+    rpc.mockResolvedValue({ data: null, error: new Error('not found') })
+
+    await expect(
+      updateAppointment({
+        id: 'missing',
+        provided_on: '2026-06-02',
+        customer: null,
+        note: null,
+        tip: 0,
+        commissionPct: 10,
+        lines: [{ service_id: 's1', price: 10 }],
+      }),
+    ).rejects.toThrow('not found')
   })
 })
 
