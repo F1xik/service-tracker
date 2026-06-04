@@ -21,12 +21,14 @@ vi.mock('@/features/services/useServices', () => ({
 
 import SettingsPage from './SettingsPage'
 import { ThemeProvider } from './ThemeContext'
+import { THEME_ROTATION_ENABLED_KEY } from '@/lib/theme/constants'
 
 const renderPage = () => render(<SettingsPage />, { wrapper: ThemeProvider })
 
 describe('SettingsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    localStorage.clear()
     updateProfileMutateAsync.mockResolvedValue(undefined)
     state.profile = { data: { currency: 'PLN', commission_pct: 15 } }
     state.updateProfile = {
@@ -44,6 +46,19 @@ describe('SettingsPage', () => {
     expect(screen.getByLabelText(/Language/)).toBeInTheDocument()
     expect(screen.getByLabelText(/Commission/)).toHaveValue(15)
     expect(screen.getByText(/Applies to new entries only/)).toBeInTheDocument()
+  })
+
+  it('renders the daily rotation toggle off by default and persists enabling it', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    const toggle = screen.getByRole('switch', { name: 'Daily random theme' })
+    expect(toggle).toHaveAttribute('aria-checked', 'false')
+
+    await user.click(toggle)
+
+    expect(toggle).toHaveAttribute('aria-checked', 'true')
+    expect(localStorage.getItem(THEME_ROTATION_ENABLED_KEY)).toBe('true')
   })
 
   it('saves the commission percentage and shows the confirmation', async () => {

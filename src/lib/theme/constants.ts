@@ -10,6 +10,7 @@ export type ThemeId =
   | 'pastel-pink'
   | 'pastel-tiffany'
   | 'pastel-violet'
+  | 'pastel-yellow'
 
 export interface Theme {
   id: ThemeId
@@ -37,12 +38,23 @@ export const THEMES: Theme[] = [
     labelKey: 'settings.themes.pastelViolet',
     swatchClass: 'swatch-pastel-violet',
   },
+  {
+    id: 'pastel-yellow',
+    labelKey: 'settings.themes.pastelYellow',
+    swatchClass: 'swatch-pastel-yellow',
+  },
 ]
 
 export const DEFAULT_THEME: ThemeId = 'light'
 
 /** localStorage key the theme preference reads from / writes to. */
 export const THEME_STORAGE_KEY = 'theme'
+
+/** localStorage key for the daily random-theme rotation on/off preference. */
+export const THEME_ROTATION_ENABLED_KEY = 'theme-rotation-enabled'
+
+/** localStorage key for the `YYYY-MM-DD` date the theme last auto-rotated. */
+export const THEME_ROTATION_LAST_DATE_KEY = 'theme-rotation-last-date'
 
 /**
  * Maps a theme id to the class applied on the document root. Light is the
@@ -54,4 +66,5 @@ export const THEME_CLASS: Record<ThemeId, string> = {
   'pastel-pink': 'theme-pastel-pink',
   'pastel-tiffany': 'theme-pastel-tiffany',
   'pastel-violet': 'theme-pastel-violet',
+  'pastel-yellow': 'theme-pastel-yellow',
 }
