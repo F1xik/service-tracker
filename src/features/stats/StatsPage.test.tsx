@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { AppointmentWithEntries } from '@/features/income/api'
-import { formatPrice } from '@/lib/format'
+import { formatAmount } from '@/lib/format'
 
 const state = vi.hoisted(() => ({
   stats: {
@@ -157,12 +157,15 @@ describe('StatsPage', () => {
     render(<StatsPage />)
     // The label <p> and value <p> share the same Card <div> wrapper.
     const box = (label: RegExp) => screen.getByText(label).closest('div') as HTMLElement
-    // toHaveTextContent collapses the currency's non-breaking space, so match it.
-    const money = (n: number) => formatPrice(n, 'PLN').replace(/\u00a0/g, ' ')
+    // Currency code appears in the title; amount is shown without symbol.
+    const amount = (n: number) => formatAmount(n)
     // earned (incl. tips) = 50 + 15; income excl. tips = 50; tips = 15.
-    expect(box(/total earned/i)).toHaveTextContent(money(65))
-    expect(box(/income \(excl\. tips\)/i)).toHaveTextContent(money(50))
-    expect(box(/total tips/i)).toHaveTextContent(money(15))
+    expect(box(/total earned/i)).toHaveTextContent('PLN')
+    expect(box(/total earned/i)).toHaveTextContent(amount(65))
+    expect(box(/income \(excl\. tips\)/i)).toHaveTextContent('PLN')
+    expect(box(/income \(excl\. tips\)/i)).toHaveTextContent(amount(50))
+    expect(box(/total tips/i)).toHaveTextContent('PLN')
+    expect(box(/total tips/i)).toHaveTextContent(amount(15))
   })
 
   it('shows a window message when no entries fall in the selected range', async () => {
