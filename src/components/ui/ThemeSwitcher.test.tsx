@@ -26,7 +26,8 @@ describe('ThemeSwitcher', () => {
 
   it('renders a radio for each theme and marks the active one', () => {
     renderSwitcher()
-    expect(screen.getAllByRole('radio')).toHaveLength(5)
+    expect(screen.getAllByRole('radio')).toHaveLength(6)
+    expect(screen.getByRole('radio', { name: 'Yellow' })).toBeInTheDocument()
     // Light is the default, so it should be checked initially.
     expect(screen.getByRole('radio', { name: 'Light' })).toHaveAttribute(
       'aria-checked',
