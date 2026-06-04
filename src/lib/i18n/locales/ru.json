@@ -12,6 +12,14 @@
   "settings": {
     "title": "Настройки",
     "language": "Язык",
+    "theme": "Цветовая тема",
+    "themes": {
+      "light": "Светлая",
+      "dark": "Тёмная",
+      "pastelPink": "Розовая",
+      "pastelTiffany": "Тиффани",
+      "pastelViolet": "Фиолетовая"
+    },
     "commissionLabel": "Комиссия %",
     "commissionInfo": "Применяется только к новым записям. Прошлые записи сохраняют свой снимок.",
     "saveCommissionError": "Не удалось сохранить комиссию."
