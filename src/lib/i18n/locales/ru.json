@@ -141,7 +141,10 @@
     "totalEarned": "Всего заработано",
     "totalCustomers": "Всего клиентов",
     "totalIncomeExclTips": "Доход без чаевых",
-    "totalTips": "Всего чаевых"
+    "totalTips": "Всего чаевых",
+    "increaseVsPrevious": "На {{pct}}% больше, чем в прошлом периоде",
+    "decreaseVsPrevious": "На {{pct}}% меньше, чем в прошлом периоде",
+    "noChangeVsPrevious": "Без изменений к прошлому периоду"
   },
   "validation": {
     "emailInvalid": "Введите корректный адрес эл. почты",

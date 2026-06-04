@@ -21,6 +21,7 @@ import { Input } from '@/components/ui/Input'
 import { Spinner } from '@/components/ui/Spinner'
 
 import { ChartTooltip } from './ChartTooltip'
+import { DeltaPill } from './DeltaPill'
 import {
   customWindow,
   filterToRange,
@@ -28,6 +29,9 @@ import {
   groupByRange,
   groupByService,
   groupByWindow,
+  pctChange,
+  previousRangeFilter,
+  previousWindow,
   sumEarned,
   sumTips,
   TIPS_SLICE_NAME,
@@ -141,6 +145,32 @@ export default function StatsPage() {
   const incomeExclTips = useMemo(() => sumEarned(filtered), [filtered])
   const tipsTotal = useMemo(() => sumTips(filtered), [filtered])
 
+  // Period-over-period comparison: the appointments in the immediately-preceding
+  // equivalent period (last week vs this week, last month vs this month, …).
+  // "All time" has no meaningful prior period, so we skip the comparison there.
+  const prevFiltered = useMemo(() => {
+    if (preset === 'all') return null
+    return isWindow
+      ? filterToWindow(entries, previousWindow(window))
+      : previousRangeFilter(entries, preset)
+  }, [entries, preset, isWindow, window])
+
+  // %-change of each headline metric vs the previous period, or null when there
+  // is no baseline (no prior period, or it had no income) so the pill hides.
+  const deltas = useMemo(() => {
+    if (!prevFiltered) {
+      return { income: null, customers: null, exclTips: null, tips: null }
+    }
+    const prevExclTips = sumEarned(prevFiltered)
+    const prevTips = sumTips(prevFiltered)
+    return {
+      income: pctChange(incomeTotal, prevExclTips + prevTips),
+      customers: pctChange(customerCount, prevFiltered.length),
+      exclTips: pctChange(incomeExclTips, prevExclTips),
+      tips: pctChange(tipsTotal, prevTips),
+    }
+  }, [prevFiltered, incomeTotal, customerCount, incomeExclTips, tipsTotal])
+
   // Clamp the custom window so `from` never exceeds `to` (collapse to one day).
   const setCustomFrom = (from: string) =>
     setCustomRange((r) => ({ from, to: r.to && from > r.to ? from : r.to }))
@@ -240,6 +270,7 @@ export default function StatsPage() {
                   <p className="mt-1 break-words text-xl font-bold leading-tight text-[var(--color-fg)] tabular-nums">
                     {formatAmount(incomeTotal, locale)}
                   </p>
+                  <DeltaPill value={deltas.income} />
                 </Card>
                 <Card className="min-w-0">
                   <p className="text-sm text-[var(--color-fg-muted)]">
@@ -248,6 +279,7 @@ export default function StatsPage() {
                   <p className="mt-1 break-words text-xl font-bold leading-tight text-[var(--color-fg)] tabular-nums">
                     {customerCount}
                   </p>
+                  <DeltaPill value={deltas.customers} />
                 </Card>
                 <Card className="min-w-0">
                   <p className="text-sm text-[var(--color-fg-muted)]">
@@ -256,6 +288,7 @@ export default function StatsPage() {
                   <p className="mt-1 break-words text-xl font-bold leading-tight text-[var(--color-fg)] tabular-nums">
                     {formatAmount(incomeExclTips, locale)}
                   </p>
+                  <DeltaPill value={deltas.exclTips} />
                 </Card>
                 <Card className="min-w-0">
                   <p className="text-sm text-[var(--color-fg-muted)]">
@@ -264,6 +297,7 @@ export default function StatsPage() {
                   <p className="mt-1 break-words text-xl font-bold leading-tight text-[var(--color-fg)] tabular-nums">
                     {formatAmount(tipsTotal, locale)}
                   </p>
+                  <DeltaPill value={deltas.tips} />
                 </Card>
               </div>
 

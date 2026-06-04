@@ -141,7 +141,10 @@
     "totalEarned": "Total earned",
     "totalCustomers": "Total customers",
     "totalIncomeExclTips": "Income (excl. tips)",
-    "totalTips": "Total tips"
+    "totalTips": "Total tips",
+    "increaseVsPrevious": "Up {{pct}}% vs previous period",
+    "decreaseVsPrevious": "Down {{pct}}% vs previous period",
+    "noChangeVsPrevious": "No change vs previous period"
   },
   "validation": {
     "emailInvalid": "Enter a valid email address",

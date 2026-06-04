@@ -168,6 +168,42 @@ describe('StatsPage', () => {
     expect(box(/total tips/i)).toHaveTextContent(amount(15))
   })
 
+  it('shows period-over-period delta pills when the previous period had income', () => {
+    // Default range is the current month (June). May is the previous period.
+    state.stats.data = [
+      entry({ provided_on: '2026-06-15', amount_earned: 30 }), // this month
+      entry({ provided_on: '2026-05-15', amount_earned: 10 }), // last month
+    ]
+    render(<StatsPage />)
+    // Income (excl. tips): 30 vs 10 → +200%. Same for total earned (no tips), so
+    // two cards carry an identical "up 200%" pill.
+    expect(screen.getAllByLabelText(/up 200% vs previous period/i)).toHaveLength(2)
+    // Customers: 1 vs 1 → no change.
+    expect(screen.getByLabelText(/no change vs previous period/i)).toBeInTheDocument()
+  })
+
+  it('hides every delta pill under the All time range', async () => {
+    const user = userEvent.setup()
+    state.stats.data = [
+      entry({ provided_on: '2026-06-15', amount_earned: 30 }),
+      entry({ provided_on: '2026-05-15', amount_earned: 10 }),
+    ]
+    render(<StatsPage />)
+    expect(screen.getAllByLabelText(/vs previous period/i).length).toBeGreaterThan(0)
+
+    await user.click(screen.getByRole('button', { name: 'All time' }))
+    // "All time" has no prior period to compare against.
+    expect(screen.queryAllByLabelText(/vs previous period/i)).toHaveLength(0)
+  })
+
+  it('hides a metric pill when the previous period had no income', () => {
+    // Only a current-month entry; the previous month is empty, so there's no
+    // baseline and no pill renders.
+    state.stats.data = [entry({ provided_on: '2026-06-15', amount_earned: 30 })]
+    render(<StatsPage />)
+    expect(screen.queryAllByLabelText(/vs previous period/i)).toHaveLength(0)
+  })
+
   it('shows a window message when no entries fall in the selected range', async () => {
     const user = userEvent.setup()
     // Entry exists, but in a prior month; default range is the current month.

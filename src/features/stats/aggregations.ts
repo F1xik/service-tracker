@@ -96,6 +96,16 @@ export function sumTips(appointments: AppointmentWithEntries[]): number {
 }
 
 /**
+ * Percent change from `previous` to `current`. Returns `null` when there is no
+ * baseline to compare against (`previous === 0`), so callers can hide the delta
+ * rather than show a divide-by-zero or a misleading "+∞".
+ */
+export function pctChange(current: number, previous: number): number | null {
+  if (previous === 0) return null
+  return ((current - previous) / previous) * 100
+}
+
+/**
  * Parse a date-only `provided_on` string (YYYY-MM-DD) into a local Date.
  * Mirrors the parsing used elsewhere so days never shift across the UTC line.
  */
@@ -154,6 +164,43 @@ export function filterToRange(
     const date = parseProvidedOn(appointment.provided_on)
     return date >= start && date < end
   })
+}
+
+/**
+ * Shift `now` back by one unit of `range` so the existing range helpers resolve
+ * the immediately-preceding equivalent period (yesterday, last week, last month,
+ * last year). Month/year anchor on a safe day-of-month so the arithmetic never
+ * rolls into a neighbouring period (e.g. Mar 31 − 1 month must land in February).
+ */
+function previousNow(range: Range, now: Date): Date {
+  if (range === 'today') {
+    const d = new Date(now)
+    d.setDate(d.getDate() - 1)
+    return d
+  }
+  if (range === 'week') {
+    const d = new Date(now)
+    d.setDate(d.getDate() - 7)
+    return d
+  }
+  if (range === 'month') {
+    return new Date(now.getFullYear(), now.getMonth() - 1, 1)
+  }
+  // year
+  return new Date(now.getFullYear() - 1, 0, 1)
+}
+
+/**
+ * Appointments in the period immediately before the one `range` selects — last
+ * week vs this week, last month vs this month, and so on. Powers the
+ * period-over-period deltas on the summary cards.
+ */
+export function previousRangeFilter(
+  appointments: AppointmentWithEntries[],
+  range: Range,
+  now: Date = new Date(),
+): AppointmentWithEntries[] {
+  return filterToRange(appointments, range, previousNow(range, now))
 }
 
 /**
@@ -300,6 +347,18 @@ export function filterToWindow(
     const date = parseProvidedOn(appointment.provided_on)
     return date >= window.start && date < window.end
   })
+}
+
+/**
+ * The equal-length span immediately before `window` (`[start − span, start)`),
+ * preserving the bucketing granularity. Lets the custom "Period" filter compare
+ * against the period just before it.
+ */
+export function previousWindow(window: Window): Window {
+  const span = window.end.getTime() - window.start.getTime()
+  const end = new Date(window.start)
+  const start = new Date(window.start.getTime() - span)
+  return { start, end, granularity: window.granularity }
 }
 
 /** Stable bucket key for a date at the given granularity. */

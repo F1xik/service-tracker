@@ -11,7 +11,10 @@ import {
   groupByRange,
   groupByService,
   groupByWindow,
+  pctChange,
   pickGranularity,
+  previousRangeFilter,
+  previousWindow,
   rangeBounds,
   sumEarned,
   sumTips,
@@ -325,6 +328,100 @@ describe('sumEarned / sumTips', () => {
     // groupByService sums the same earnings + tips, so its grand total must match.
     const takeHome = groupByService(data).reduce((sum, s) => sum + s.total, 0)
     expect(sumEarned(data) + sumTips(data)).toBe(takeHome)
+  })
+})
+
+describe('pctChange', () => {
+  it('returns the signed percent change against a non-zero baseline', () => {
+    expect(pctChange(120, 100)).toBe(20)
+    expect(pctChange(80, 100)).toBe(-20)
+    expect(pctChange(100, 100)).toBe(0)
+  })
+
+  it('returns null when there is no baseline to divide by', () => {
+    expect(pctChange(50, 0)).toBeNull()
+    expect(pctChange(0, 0)).toBeNull()
+  })
+})
+
+describe('previousRangeFilter', () => {
+  it('selects the previous calendar month for the "month" range', () => {
+    const result = previousRangeFilter(
+      [
+        appt({ provided_on: '2026-06-15', tip: 1 }), // this month — excluded
+        appt({ provided_on: '2026-05-31', tip: 2 }), // last month — included
+        appt({ provided_on: '2026-05-01', tip: 3 }), // last month — included
+        appt({ provided_on: '2026-04-30', tip: 4 }), // two months ago — excluded
+      ],
+      'month',
+      now,
+    )
+    expect(result.map((a) => a.tip)).toEqual([2, 3])
+  })
+
+  it('selects the prior 7-day week for the "week" range', () => {
+    const result = previousRangeFilter(
+      [
+        appt({ provided_on: '2026-06-15', tip: 1 }), // this week — excluded
+        appt({ provided_on: '2026-06-08', tip: 2 }), // last week Mon — included
+        appt({ provided_on: '2026-06-14', tip: 3 }), // last week Sun — included
+        appt({ provided_on: '2026-06-07', tip: 4 }), // week before — excluded
+      ],
+      'week',
+      now,
+    )
+    expect(result.map((a) => a.tip)).toEqual([2, 3])
+  })
+
+  it('selects yesterday for the "today" range', () => {
+    const result = previousRangeFilter(
+      [
+        appt({ provided_on: '2026-06-15', tip: 1 }), // today — excluded
+        appt({ provided_on: '2026-06-14', tip: 2 }), // yesterday — included
+        appt({ provided_on: '2026-06-13', tip: 3 }), // excluded
+      ],
+      'today',
+      now,
+    )
+    expect(result.map((a) => a.tip)).toEqual([2])
+  })
+
+  it('selects the previous calendar year for the "year" range', () => {
+    const result = previousRangeFilter(
+      [
+        appt({ provided_on: '2026-01-01', tip: 1 }), // this year — excluded
+        appt({ provided_on: '2025-12-31', tip: 2 }), // last year — included
+        appt({ provided_on: '2024-12-31', tip: 3 }), // two years ago — excluded
+      ],
+      'year',
+      now,
+    )
+    expect(result.map((a) => a.tip)).toEqual([2])
+  })
+})
+
+describe('previousWindow', () => {
+  it('is the equal-length span immediately before the window', () => {
+    const w = customWindow([], '2026-06-08', '2026-06-14', now) // 7-day span [8, 15)
+    const prev = previousWindow(w)
+    expect(prev.start).toEqual(new Date(2026, 5, 1)) // 7 days before the start
+    expect(prev.end).toEqual(w.start) // abuts the current window's start
+    expect(prev.granularity).toBe(w.granularity)
+  })
+
+  it('filters into the period just before the current one', () => {
+    const w = customWindow([], '2026-06-08', '2026-06-14', now)
+    const prev = previousWindow(w)
+    const result = filterToWindow(
+      [
+        appt({ provided_on: '2026-06-08', tip: 1 }), // current window — excluded
+        appt({ provided_on: '2026-06-07', tip: 2 }), // previous window — included
+        appt({ provided_on: '2026-06-01', tip: 3 }), // previous window start — included
+        appt({ provided_on: '2026-05-31', tip: 4 }), // before previous window — excluded
+      ],
+      prev,
+    )
+    expect(result.map((a) => a.tip)).toEqual([2, 3])
   })
 })
 
