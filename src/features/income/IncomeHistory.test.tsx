@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -6,6 +6,7 @@ import { shiftDays, todayLocal } from '@/lib/date'
 import type { AppointmentWithEntries } from './api'
 
 const deleteMutate = vi.hoisted(() => vi.fn())
+const updateMutateAsync = vi.hoisted(() => vi.fn())
 const fetchNextPage = vi.hoisted(() => vi.fn())
 
 interface HistoryState {
@@ -36,6 +37,7 @@ vi.mock('./useIncome', () => ({
   useInfiniteAppointments: () => ({ ...state.history, fetchNextPage }),
   useAppointmentDayCount: () => ({ data: state.dayCount }),
   useDeleteAppointment: () => ({ mutate: deleteMutate }),
+  useUpdateAppointment: () => ({ mutateAsync: updateMutateAsync, isPending: false }),
 }))
 
 import { IncomeHistory } from './IncomeHistory'
@@ -256,6 +258,49 @@ describe('IncomeHistory', () => {
 
     await user.click(screen.getByRole('button', { name: 'Delete entry' }))
     expect(deleteMutate).toHaveBeenCalledWith('a1')
+  })
+
+  it('opens the edit dialog prefilled and saves recomputed changes', async () => {
+    setPages([appointment({ customer: 'Jane', tip: 4 })])
+    const services = [
+      {
+        id: 's1',
+        user_id: 'u1',
+        name: 'Haircut',
+        price: 40,
+        active: true,
+        created_at: '2026-01-01T00:00:00Z',
+      },
+    ]
+    const user = userEvent.setup()
+    render(
+      <IncomeHistory currency="USD" activeServices={services} commissionPct={15} />,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Edit entry' }))
+
+    // Dialog opens prefilled from the appointment + its line snapshot.
+    const dialog = screen.getByRole('dialog')
+    expect(within(dialog).getByLabelText(/Customer/)).toHaveValue('Jane')
+    expect(within(dialog).getByLabelText(/Commission/)).toHaveValue(15)
+    expect(within(dialog).getByLabelText(/Price/)).toHaveValue(40)
+
+    // Change the commission and save.
+    const commission = within(dialog).getByLabelText(/Commission/)
+    await user.clear(commission)
+    await user.type(commission, '25')
+    await user.click(within(dialog).getByRole('button', { name: 'Save changes' }))
+
+    await waitFor(() => expect(updateMutateAsync).toHaveBeenCalledTimes(1))
+    expect(updateMutateAsync).toHaveBeenCalledWith({
+      id: 'a1',
+      provided_on: '2026-06-02',
+      customer: 'Jane',
+      note: null,
+      tip: 4,
+      commissionPct: 25,
+      lines: [{ service_id: 's1', price: 40 }],
+    })
   })
 
   it('shows a "Load more" button when more pages exist and fetches the next one', async () => {

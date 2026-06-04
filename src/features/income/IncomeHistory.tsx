@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { StickyNote, Trash2 } from 'lucide-react'
+import { Pencil, StickyNote, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
+import type { Service } from '@/lib/calc'
 import { formatPrice } from '@/lib/format'
 import { shiftDays, todayLocal } from '@/lib/date'
 
@@ -9,13 +10,17 @@ import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Alert } from '@/components/ui/Alert'
 import { Spinner } from '@/components/ui/Spinner'
+import { Dialog } from '@/components/ui/Dialog'
 
 import { DateRangePicker, type DateRange, type PresetId } from './DateRangePicker'
+import { EntryForm, type EntryFormValues } from './EntryForm'
 import { groupAppointmentsByDate } from './grouping'
+import type { AppointmentWithEntries } from './api'
 import {
   useAppointmentDayCount,
   useDeleteAppointment,
   useInfiniteAppointments,
+  useUpdateAppointment,
 } from './useIncome'
 
 function formatDate(value: string, locale: string): string {
@@ -47,9 +52,56 @@ function defaultFilter(): Filter {
 
 interface IncomeHistoryProps {
   currency: string
+  activeServices?: Service[]
+  /** Default commission % (from the profile) for editing legacy lines. */
+  commissionPct?: number
 }
 
-export function IncomeHistory({ currency }: IncomeHistoryProps) {
+/**
+ * Build the service list shown in the edit form's pickers. The form lists only
+ * active services, but an appointment may reference one since deactivated or
+ * deleted — without it the original selection would be lost. Union the active
+ * list with a minimal `Service` reconstructed from each line so every existing
+ * line stays selectable and submittable.
+ */
+function editServiceOptions(
+  appointment: AppointmentWithEntries,
+  activeServices: Service[],
+): Service[] {
+  const byId = new Map(activeServices.map((s) => [s.id, s]))
+  for (const entry of appointment.entries) {
+    if (!entry.service_id || byId.has(entry.service_id)) continue
+    byId.set(entry.service_id, {
+      id: entry.service_id,
+      user_id: appointment.user_id,
+      name: entry.service?.name ?? '',
+      price: entry.price_snapshot,
+      active: false,
+      created_at: entry.created_at,
+    })
+  }
+  return [...byId.values()]
+}
+
+function toInitialValues(appointment: AppointmentWithEntries): EntryFormValues {
+  return {
+    provided_on: appointment.provided_on,
+    customer: appointment.customer ?? '',
+    note: appointment.note ?? '',
+    tip: appointment.tip,
+    commission: appointment.entries[0]?.commission_pct_snapshot ?? 0,
+    lines: appointment.entries.map((entry) => ({
+      service_id: entry.service_id ?? '',
+      price: entry.price_snapshot,
+    })),
+  }
+}
+
+export function IncomeHistory({
+  currency,
+  activeServices = [],
+  commissionPct = 0,
+}: IncomeHistoryProps) {
   const { t, i18n } = useTranslation()
   const locale = i18n.language
   const [filter, setFilter] = useState<Filter>(defaultFilter)
@@ -58,13 +110,43 @@ export function IncomeHistory({ currency }: IncomeHistoryProps) {
   const [expandedNotes, setExpandedNotes] = useState<ReadonlySet<string>>(
     () => new Set(),
   )
+  const [editing, setEditing] = useState<AppointmentWithEntries | null>(null)
+  const [editError, setEditError] = useState<string | null>(null)
   const historyQuery = useInfiniteAppointments(filter.range)
   const dayCountQuery = useAppointmentDayCount(filter.range)
   const deleteAppointment = useDeleteAppointment()
+  const updateAppointment = useUpdateAppointment()
 
   function handleDelete(id: string) {
     if (!window.confirm(t('income.deleteConfirm'))) return
     deleteAppointment.mutate(id)
+  }
+
+  function closeEdit() {
+    setEditing(null)
+    setEditError(null)
+  }
+
+  async function handleEditSubmit(values: EntryFormValues) {
+    if (!editing) return
+    setEditError(null)
+    try {
+      await updateAppointment.mutateAsync({
+        id: editing.id,
+        provided_on: values.provided_on,
+        customer: values.customer.trim() || null,
+        note: values.note.trim() || null,
+        tip: Number(values.tip) || 0,
+        commissionPct: Number(values.commission) || 0,
+        lines: values.lines.map((line) => ({
+          service_id: line.service_id,
+          price: Number(line.price),
+        })),
+      })
+      closeEdit()
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : t('income.updateError'))
+    }
   }
 
   function toggleNote(id: string) {
@@ -160,6 +242,18 @@ export function IncomeHistory({ currency }: IncomeHistoryProps) {
                                 type="button"
                                 variant="ghost"
                                 size="icon"
+                                aria-label={t('income.editEntry')}
+                                onClick={() => {
+                                  setEditError(null)
+                                  setEditing(appointment)
+                                }}
+                              >
+                                <Pencil size={18} aria-hidden="true" />
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
                                 aria-label={t('income.deleteEntry')}
                                 onClick={() => handleDelete(appointment.id)}
                               >
@@ -240,6 +334,22 @@ export function IncomeHistory({ currency }: IncomeHistoryProps) {
           </p>
         </Card>
       )}
+
+      <Dialog open={!!editing} onClose={closeEdit} title={t('income.editTitle')}>
+        {editing && (
+          <EntryForm
+            activeServices={editServiceOptions(editing, activeServices)}
+            commissionPct={commissionPct}
+            currency={currency}
+            initialValues={toInitialValues(editing)}
+            showCommission
+            submitLabel={t('income.saveChanges')}
+            onSubmit={handleEditSubmit}
+            submitting={updateAppointment.isPending}
+            submitError={editError}
+          />
+        )}
+      </Dialog>
     </section>
   )
 }
