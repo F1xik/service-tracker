@@ -11,6 +11,7 @@ import { Field } from '@/components/ui/Field'
 import { Card } from '@/components/ui/Card'
 import { Alert } from '@/components/ui/Alert'
 import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher'
+import { ThemeSwitcher } from '@/components/ui/ThemeSwitcher'
 
 import { useProfile, useUpdateProfile } from '@/features/services/useServices'
 
@@ -23,6 +24,18 @@ const makeCommissionSchema = (t: TFunction) =>
   })
 
 type CommissionValues = z.infer<ReturnType<typeof makeCommissionSchema>>
+
+/** Color theme picker — persists to localStorage via the ThemeProvider. */
+function ThemeSettings() {
+  const { t } = useTranslation()
+  return (
+    <Card>
+      <Field id="theme-switcher" label={t('settings.theme')}>
+        <ThemeSwitcher />
+      </Field>
+    </Card>
+  )
+}
 
 /** Language preference picker — persists to localStorage via the detector. */
 function LanguageSettings() {
@@ -126,6 +139,7 @@ export default function SettingsPage() {
       </header>
 
       <div className="space-y-4">
+        <ThemeSettings />
         <LanguageSettings />
         <CommissionSettings />
       </div>

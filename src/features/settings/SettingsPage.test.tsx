@@ -20,6 +20,9 @@ vi.mock('@/features/services/useServices', () => ({
 }))
 
 import SettingsPage from './SettingsPage'
+import { ThemeProvider } from './ThemeContext'
+
+const renderPage = () => render(<SettingsPage />, { wrapper: ThemeProvider })
 
 describe('SettingsPage', () => {
   beforeEach(() => {
@@ -35,7 +38,7 @@ describe('SettingsPage', () => {
   })
 
   it('renders the language picker and commission form with resolved copy', () => {
-    render(<SettingsPage />)
+    renderPage()
 
     expect(screen.getByRole('heading', { name: 'Settings' })).toBeInTheDocument()
     expect(screen.getByLabelText(/Language/)).toBeInTheDocument()
@@ -45,7 +48,7 @@ describe('SettingsPage', () => {
 
   it('saves the commission percentage and shows the confirmation', async () => {
     const user = userEvent.setup()
-    render(<SettingsPage />)
+    renderPage()
 
     const commission = screen.getByLabelText(/Commission/)
     await user.clear(commission)
@@ -60,7 +63,7 @@ describe('SettingsPage', () => {
 
   it('rejects a commission outside the 0–100 range', async () => {
     const user = userEvent.setup()
-    render(<SettingsPage />)
+    renderPage()
 
     const commission = screen.getByLabelText(/Commission/)
     await user.clear(commission)
@@ -78,7 +81,7 @@ describe('SettingsPage', () => {
       isError: true,
       error: new Error('Save failed'),
     }
-    render(<SettingsPage />)
+    renderPage()
 
     expect(screen.getByText('Save failed')).toBeInTheDocument()
   })

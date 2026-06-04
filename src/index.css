@@ -110,6 +110,63 @@
   --shadow-lg: 0 12px 28px -6px oklch(0 0 0 / 0.55);
 }
 
+/* Pastel pink — soft rose surfaces with a warm pink accent. */
+.theme-pastel-pink {
+  --color-bg: oklch(0.971 0.018 12);
+  --color-surface: oklch(0.99 0.008 10);
+  --color-surface-muted: oklch(0.955 0.026 9);
+  --color-border: oklch(0.912 0.035 8);
+  --color-border-strong: oklch(0.86 0.05 8);
+
+  --color-fg: oklch(0.31 0.07 5);
+  --color-fg-muted: oklch(0.5 0.06 6);
+  --color-fg-subtle: oklch(0.61 0.055 7);
+
+  --color-primary: oklch(0.59 0.18 9);
+  --color-primary-hover: oklch(0.53 0.18 9);
+  --color-primary-fg: oklch(1 0 0);
+  --color-primary-subtle: oklch(0.94 0.04 8);
+  --color-ring: oklch(0.64 0.17 9);
+}
+
+/* Pastel Tiffany — pale aqua surfaces with a teal accent. */
+.theme-pastel-tiffany {
+  --color-bg: oklch(0.972 0.025 185);
+  --color-surface: oklch(0.99 0.012 185);
+  --color-surface-muted: oklch(0.955 0.034 185);
+  --color-border: oklch(0.91 0.042 185);
+  --color-border-strong: oklch(0.855 0.055 186);
+
+  --color-fg: oklch(0.3 0.05 195);
+  --color-fg-muted: oklch(0.48 0.045 192);
+  --color-fg-subtle: oklch(0.59 0.04 190);
+
+  --color-primary: oklch(0.58 0.11 187);
+  --color-primary-hover: oklch(0.52 0.11 187);
+  --color-primary-fg: oklch(1 0 0);
+  --color-primary-subtle: oklch(0.93 0.045 186);
+  --color-ring: oklch(0.63 0.1 187);
+}
+
+/* Pastel violet — lilac surfaces with a violet accent. */
+.theme-pastel-violet {
+  --color-bg: oklch(0.969 0.018 305);
+  --color-surface: oklch(0.99 0.009 305);
+  --color-surface-muted: oklch(0.953 0.026 305);
+  --color-border: oklch(0.91 0.034 304);
+  --color-border-strong: oklch(0.855 0.046 303);
+
+  --color-fg: oklch(0.31 0.07 300);
+  --color-fg-muted: oklch(0.49 0.06 300);
+  --color-fg-subtle: oklch(0.6 0.05 301);
+
+  --color-primary: oklch(0.55 0.2 300);
+  --color-primary-hover: oklch(0.49 0.2 300);
+  --color-primary-fg: oklch(1 0 0);
+  --color-primary-subtle: oklch(0.94 0.04 303);
+  --color-ring: oklch(0.6 0.19 300);
+}
+
 :root {
   font-family: var(--font-sans);
   background-color: var(--color-bg);
@@ -118,4 +175,32 @@
 
 .tabular {
   font-variant-numeric: tabular-nums;
+}
+
+/* Theme swatch buttons for the settings picker — each is painted in its own
+   theme's surface/text/border so the button previews the palette directly. */
+.swatch-light {
+  background-color: oklch(0.985 0.003 250);
+  color: oklch(0.21 0.037 264);
+  border-color: oklch(0.869 0.017 253);
+}
+.swatch-dark {
+  background-color: oklch(0.165 0.02 264);
+  color: oklch(0.97 0.005 250);
+  border-color: oklch(0.372 0.038 258);
+}
+.swatch-pastel-pink {
+  background-color: oklch(0.971 0.018 12);
+  color: oklch(0.31 0.07 5);
+  border-color: oklch(0.86 0.05 8);
+}
+.swatch-pastel-tiffany {
+  background-color: oklch(0.972 0.025 185);
+  color: oklch(0.3 0.05 195);
+  border-color: oklch(0.855 0.055 186);
+}
+.swatch-pastel-violet {
+  background-color: oklch(0.969 0.018 305);
+  color: oklch(0.31 0.07 300);
+  border-color: oklch(0.855 0.046 303);
 }
