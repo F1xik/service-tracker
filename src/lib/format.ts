@@ -14,3 +14,14 @@ export function formatPrice(value: number, currency: string, locale?: string): s
     return value.toFixed(2)
   }
 }
+
+/**
+ * Format a numeric amount as a plain localized decimal (no currency symbol).
+ * Use this when the currency is displayed separately (e.g. in a label).
+ */
+export function formatAmount(value: number, locale?: string): string {
+  return new Intl.NumberFormat(locale, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value)
+}
