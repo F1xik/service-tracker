@@ -78,8 +78,11 @@ function serviceLabel(
   currency: string,
   locale: string,
 ): string {
-  const pct = serviceTotal > 0 ? Math.round((slice.total / serviceTotal) * 100) : 0
-  return `${slice.name} · ${formatPrice(slice.total, currency, locale)} · ${pct}%`
+  const pct = serviceTotal > 0 ? (slice.total / serviceTotal) * 100 : 0
+  // One decimal so small slices read as e.g. "0,3%" instead of "0%"; whole
+  // numbers stay clean ("37%") since trailing zeros are dropped.
+  const pctLabel = pct.toLocaleString(locale, { maximumFractionDigits: 1 })
+  return `${slice.name} · ${formatPrice(slice.total, currency, locale)} · ${pctLabel}%`
 }
 
 export default function StatsPage() {
