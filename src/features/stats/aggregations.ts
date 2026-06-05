@@ -27,9 +27,6 @@ export interface Window {
   granularity: Granularity
 }
 
-/** Pie-slice label for tips, kept distinct from any service name. */
-export const TIPS_SLICE_NAME = 'Tips'
-
 export interface RangeBucket {
   label: string
   total: number
@@ -386,23 +383,18 @@ export function groupByWindow(
 }
 
 /**
- * Sum `amount_earned` per service, sorted by total descending. Line items with
- * no service (e.g. a deleted one) are grouped under "Unknown service". Tips are
- * accumulated into their own "Tips" slice so the pie total matches take-home.
- * Returns `[]` for empty input.
+ * Sum `amount_earned` per service, sorted by total descending. Only real
+ * services are included: tips and line items with no service (e.g. a deleted
+ * one) are excluded from the breakdown. Returns `[]` for empty input.
  */
 export function groupByService(appointments: AppointmentWithEntries[]): ServiceTotal[] {
   const buckets = new Map<string, number>()
-  let tips = 0
   for (const appointment of appointments) {
-    tips += appointment.tip
     for (const entry of appointment.entries) {
-      const name = entry.service?.name ?? 'Unknown service'
+      const name = entry.service?.name
+      if (!name) continue
       buckets.set(name, (buckets.get(name) ?? 0) + entry.amount_earned)
     }
-  }
-  if (tips > 0) {
-    buckets.set(TIPS_SLICE_NAME, (buckets.get(TIPS_SLICE_NAME) ?? 0) + tips)
   }
   return [...buckets.entries()]
     .map(([name, total]) => ({ name, total }))

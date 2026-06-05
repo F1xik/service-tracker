@@ -30,7 +30,6 @@ import {
   groupByWindow,
   sumEarned,
   sumTips,
-  TIPS_SLICE_NAME,
   type Range,
   type ServiceTotal,
 } from './aggregations'
@@ -72,17 +71,15 @@ const PIE_COLORS = [
   '#65a30d',
 ]
 
-// Build a legend row label: "name · price · pct%". Tips get a translated name.
+// Build a legend row label: "name · price · pct%".
 function serviceLabel(
   slice: ServiceTotal,
   serviceTotal: number,
   currency: string,
-  t: (key: string) => string,
   locale: string,
 ): string {
-  const name = slice.name === TIPS_SLICE_NAME ? t('stats.tips') : slice.name
   const pct = serviceTotal > 0 ? Math.round((slice.total / serviceTotal) * 100) : 0
-  return `${name} · ${formatPrice(slice.total, currency, locale)} · ${pct}%`
+  return `${slice.name} · ${formatPrice(slice.total, currency, locale)} · ${pct}%`
 }
 
 export default function StatsPage() {
@@ -389,7 +386,7 @@ export default function StatsPage() {
                           />
                         </svg>
                         <span className="truncate">
-                          {serviceLabel(slice, serviceTotal, currency, t, locale)}
+                          {serviceLabel(slice, serviceTotal, currency, locale)}
                         </span>
                       </li>
                     ))}
