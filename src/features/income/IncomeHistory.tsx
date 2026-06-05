@@ -88,7 +88,9 @@ function toInitialValues(appointment: AppointmentWithEntries): EntryFormValues {
     provided_on: appointment.provided_on,
     customer: appointment.customer ?? '',
     note: appointment.note ?? '',
-    tip: appointment.tip,
+    // A stored tip of 0 starts the field empty (showing the 0.00 placeholder)
+    // rather than a literal 0 the user must delete; it round-trips back to 0.
+    tip: appointment.tip || (undefined as unknown as number),
     commission: appointment.entries[0]?.commission_pct_snapshot ?? 0,
     lines: appointment.entries.map((entry) => ({
       service_id: entry.service_id ?? '',
