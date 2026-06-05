@@ -85,7 +85,7 @@ export function EntryForm({
       provided_on: todayLocal(),
       customer: '',
       note: '',
-      tip: 0,
+      tip: undefined as unknown as number,
       commission: commissionPct,
       lines: [{ service_id: '', price: undefined as unknown as number }],
     },
