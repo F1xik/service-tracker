@@ -142,11 +142,10 @@ describe('StatsPage', () => {
       entry({ provided_on: '2026-06-15', amount_earned: 30, tip: 10 }),
     ]
     render(<StatsPage />)
-    // Custom HTML legend (not behind the recharts mock): one row per slice,
-    // formatted as "name · price · pct%". One service + a tips slice.
+    // Custom HTML legend (not behind the recharts mock): one row per service
+    // slice, formatted as "name · price · pct%". Tips are not a pie slice.
     expect(screen.getByText(/Haircut · .* · \d+%/)).toBeInTheDocument()
-    // Tips accumulate into their own translated slice.
-    expect(screen.getByText(/Tips · .* · \d+%/)).toBeInTheDocument()
+    expect(screen.queryByText(/Tips · .* · \d+%/)).not.toBeInTheDocument()
   })
 
   it('splits take-home into earned, income-excl-tips and tips boxes', () => {

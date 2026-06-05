@@ -253,14 +253,19 @@ describe('groupByService', () => {
     ])
   })
 
-  it('groups null services under "Unknown service"', () => {
+  it('excludes line items with no service (e.g. a deleted one)', () => {
     const result = groupByService([
-      appt({ entries: [line({ service: null, service_id: null, amount_earned: 8 })] }),
+      appt({
+        entries: [
+          line({ service: { name: 'Haircut' }, amount_earned: 10 }),
+          line({ service: null, service_id: null, amount_earned: 8 }),
+        ],
+      }),
     ])
-    expect(result).toEqual([{ name: 'Unknown service', total: 8 }])
+    expect(result).toEqual([{ name: 'Haircut', total: 10 }])
   })
 
-  it('accumulates tips into their own "Tips" slice', () => {
+  it('excludes tips from the breakdown', () => {
     const result = groupByService([
       appt({
         entries: [line({ service: { name: 'Haircut' }, amount_earned: 10 })],
@@ -271,20 +276,7 @@ describe('groupByService', () => {
         tip: 2,
       }),
     ])
-    expect(result).toEqual([
-      { name: 'Haircut', total: 20 },
-      { name: 'Tips', total: 5 },
-    ])
-  })
-
-  it('omits the Tips slice when there are no tips', () => {
-    const result = groupByService([
-      appt({
-        entries: [line({ service: { name: 'Haircut' }, amount_earned: 10 })],
-        tip: 0,
-      }),
-    ])
-    expect(result).toEqual([{ name: 'Haircut', total: 10 }])
+    expect(result).toEqual([{ name: 'Haircut', total: 20 }])
   })
 })
 
@@ -314,17 +306,23 @@ describe('sumEarned / sumTips', () => {
     expect(sumTips([])).toBe(0)
   })
 
-  it('sumEarned + sumTips equals the combined take-home total', () => {
+  it('groupByService grand total equals sumEarned (tips excluded)', () => {
     const data = [
       appt({
-        entries: [line({ amount_earned: 10 }), line({ amount_earned: 20 })],
+        entries: [
+          line({ service: { name: 'Haircut' }, amount_earned: 10 }),
+          line({ service: { name: 'Color' }, amount_earned: 20 }),
+        ],
         tip: 3,
       }),
-      appt({ entries: [line({ amount_earned: 5 })], tip: 2 }),
+      appt({
+        entries: [line({ service: { name: 'Haircut' }, amount_earned: 5 })],
+        tip: 2,
+      }),
     ]
-    // groupByService sums the same earnings + tips, so its grand total must match.
-    const takeHome = groupByService(data).reduce((sum, s) => sum + s.total, 0)
-    expect(sumEarned(data) + sumTips(data)).toBe(takeHome)
+    // The pie breakdown covers earnings per service only; tips are not a slice.
+    const breakdown = groupByService(data).reduce((sum, s) => sum + s.total, 0)
+    expect(breakdown).toBe(sumEarned(data))
   })
 })
 
