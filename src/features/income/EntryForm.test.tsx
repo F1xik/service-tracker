@@ -130,9 +130,9 @@ describe('EntryForm', () => {
     ])
   })
 
-  it('renders a tip field defaulting to 0', () => {
+  it('renders an empty tip field', () => {
     setup()
-    expect(screen.getByLabelText(/Tip/)).toHaveValue(0)
+    expect(screen.getByLabelText(/Tip/)).toHaveValue(null)
   })
 
   it('adds the tip on top of earnings in the total (no commission on tips)', async () => {
