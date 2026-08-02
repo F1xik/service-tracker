@@ -50,5 +50,5 @@ npm i -D playwright          # or: npx -y playwright install chromium
 node docs/mockups/capture.mjs
 ```
 
-Writes all 20 PNGs to `images/`. `playwright` is intentionally **not** a project dependency —
+Writes all 16 PNGs to `images/`. `playwright` is intentionally **not** a project dependency —
 install it ad hoc only when regenerating.

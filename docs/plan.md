@@ -79,5 +79,5 @@ See `docs/tasks/` for individual task files.
 
 ## Notes / Deferred
 
-- The schema ships as two migrations: `0001_initial_schema.sql` (tables, RLS, signup trigger) and `0002_integrity_constraints.sql` (value CHECK constraints + a backstop validation trigger on `income_entries`).
+- The schema ships as a single consolidated migration, `0001_initial_schema.sql` (tables, RLS policies, value CHECK constraints, grants, the signup trigger, and the backstop validation trigger on `income_entries`).
 - When Capacitor wrapping is desired: point it at the Vite build output, add desired native plugins. No app code changes needed.

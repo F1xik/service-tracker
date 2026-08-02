@@ -7,6 +7,12 @@
 > **Scope note:** This is a *written specification*. No production code, dependencies, or
 > tokens are installed yet. All code blocks are **paste-ready reference** for implementers —
 > see the [Implementation appendix](#7-implementation-appendix) for how to wire it up.
+>
+> **As-built note:** the shipped app uses hand-rolled accessible components in
+> `src/components/ui/` instead of the Radix UI primitives specified in
+> [§4 Component library](#4-component-library) below — no `@radix-ui/*` packages were
+> ultimately installed. The rest of this document (tokens, screens, patterns) reflects the
+> actual implementation; the component-library section is kept as the original design intent.
 
 ---
 
